@@ -210,7 +210,7 @@ function renderDashboard() {
   document.querySelector("#lowStockTable tbody").innerHTML = lowStock.length
     ? lowStock.sort((a, b) => a.stock - b.stock).slice(0, 8).map(p => `
       <tr>
-        <td class="row-flex"><img class="thumb" src="${esc(imgSrc(p.image))}" alt=""><span class="cell-strong">${esc(p.title)}</span></td>
+        <td class="row-flex"><img class="thumb" src="${esc(imgSrc(p.image, IMG.thumb))}" alt="" loading="lazy"><span class="cell-strong">${esc(p.title)}</span></td>
         <td class="num"><span class="badge ${p.stock <= 0 ? "b-bad" : "b-warn"}">${p.stock}</span></td>
       </tr>`).join("")
     : emptyRow(2, "Everything well stocked ✦");
@@ -362,7 +362,7 @@ function renderProducts() {
     ? rows.map(p => `
       <tr>
         <td class="row-flex">
-          <img class="thumb" src="${esc(imgSrc(p.image))}" alt="">
+          <img class="thumb" src="${esc(imgSrc(p.image, IMG.thumb))}" alt="" loading="lazy">
           <div><div class="cell-strong">${esc(p.title)}</div><div class="cell-sub">#${p.id}</div></div>
         </td>
         <td>${(p.categories || []).map(c => `<span class="chip">${esc(c.category.name)}</span>`).join("") || "<span class='cell-sub'>—</span>"}</td>
@@ -637,7 +637,7 @@ function viewOrder(id) {
   document.getElementById("detailsTitle").textContent = `Order #${o.id}`;
   const items = (o.orderItems || []).map(i => `
     <div class="order-line">
-      <img class="thumb" src="${esc(imgSrc(itemImage(i)))}" alt="">
+      <img class="thumb" src="${esc(imgSrc(itemImage(i), IMG.thumb))}" alt="" loading="lazy">
       <div style="flex:1"><div class="cell-strong">${esc(itemTitle(i))}</div>
       <div class="cell-sub">Qty ${i.quantity} × ${inr(i.price)}</div></div>
       <div class="cell-strong">${inr(i.price * i.quantity)}</div>

@@ -209,3 +209,27 @@ describe('order line snapshot helpers', () => {
     expect(itemTitle(undefined)).toBe('Product (no longer listed)');
   });
 });
+
+describe('imgSrc sizing (Cloudinary)', () => {
+  const { imgSrc, IMG, NO_IMAGE_PLACEHOLDER } = require('./api');
+  const up = 'https://res.cloudinary.com/skqhke5p/image/upload/v1788778170/radha-products/x.jpg';
+  test('adds resize + auto format/quality to plain Cloudinary uploads', () => {
+    expect(imgSrc(up, IMG.card)).toBe('https://res.cloudinary.com/skqhke5p/image/upload/f_auto,q_auto,c_limit,w_600/v1788778170/radha-products/x.jpg');
+    expect(imgSrc(up, 160.4)).toContain(',w_160/v1788778170/');
+  });
+  test('no width = original URL (backwards compatible)', () => {
+    expect(imgSrc(up)).toBe(up);
+    expect(imgSrc(up, 0)).toBe(up);
+  });
+  test('leaves already-transformed, other hosts and legacy uploads alone', () => {
+    const t = 'https://res.cloudinary.com/skqhke5p/image/upload/w_100/v1/x.jpg';
+    expect(imgSrc(t, 600)).toBe(t);
+    expect(imgSrc('https://example.com/a.jpg', 600)).toBe('https://example.com/a.jpg');
+    expect(imgSrc('http://res.cloudinary.com/x/image/upload/v1/a.jpg', 600)).toBe('http://res.cloudinary.com/x/image/upload/v1/a.jpg');
+    expect(imgSrc('/uploads/a.jpg', 600)).toMatch(/\/uploads\/a\.jpg$/);
+    expect(imgSrc(null, 600)).toMatch(/^data:image\/svg\+xml,/);
+  });
+  test('size presets', () => {
+    expect(IMG).toEqual({ thumb: 200, story: 160, card: 600, similar: 300, detail: 1000 });
+  });
+});

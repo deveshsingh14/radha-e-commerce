@@ -17,9 +17,21 @@ function esc(v) {
 // migration, so prefix the API origin for anything that isn't already
 // absolute.
 const NO_IMAGE_PLACEHOLDER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' fill='%23f4ede4'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='14' fill='%23b8a68f' text-anchor='middle' dominant-baseline='middle'%3ENo image%3C/text%3E%3C/svg%3E";
-function imgSrc(image) {
+// Cloudinary serves originals (often 0.5–0.8 MB each) unless asked for a
+// size. With a width, uploads get a resized, auto-format (WebP/AVIF),
+// auto-quality version — typically 15–50× smaller. Only plain upload URLs
+// (".../image/upload/v123/...") are rewritten; anything already transformed,
+// non-Cloudinary or legacy is left as is.
+const CLOUDINARY_UPLOAD = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(v\d+\/.+)$/;
+const IMG = { thumb: 200, story: 160, card: 600, similar: 300, detail: 1000 };
+
+function imgSrc(image, width) {
   if (!image) return NO_IMAGE_PLACEHOLDER;
-  return image.startsWith("http") ? image : API_URL + image;
+  const url = image.startsWith("http") ? image : API_URL + image;
+  const w = Math.round(Number(width));
+  if (!w || w <= 0) return url;
+  const m = CLOUDINARY_UPLOAD.exec(url);
+  return m ? `${m[1]}f_auto,q_auto,c_limit,w_${w}/${m[2]}` : url;
 }
 
 // Order lines keep a title/image snapshot (the product may since have been
@@ -99,6 +111,7 @@ if (typeof module !== "undefined") {
     inr,
     esc,
     imgSrc,
+    IMG,
     handle401,
     token,
     authHeaders,

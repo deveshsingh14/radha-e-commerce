@@ -61,32 +61,84 @@ function categoryEmoji(name) {
 // ============================================================
 //  LOADING
 // ============================================================
-async function boot() {
-  renderSkeletons();
-  try {
-    const [prodRes, catRes] = await Promise.all([
-      // CHANGED: /products is now paginated (default limit=50); request
-      // a limit generous enough to still get the whole catalog in one
-      // call, since the storefront filters/searches client-side.
-      fetch(`${API_URL}/products?limit=200`),
-      fetch(`${API_URL}/categories`)
-    ]);
-    PRODUCTS = (await prodRes.json()).items.map(normalizeProduct);
-    CATEGORIES = await catRes.json();
-    SECTION_PRODUCTS = filterProductsBySection(PRODUCTS, SECTION);
-    SECTION_CATEGORIES = categoriesForSection(CATEGORIES, SECTION);
-    productsByCategory = null; // invalidate caches when products reload
-    categoryCoverMap = null;
-  } catch (e) {
-    console.error("Error loading storefront data:", e);
-    document.getElementById("masonry").innerHTML =
-      `<div class="empty-feed" style="column-span:all"><div class="big">⚠</div>
-       Couldn't reach the store. Is the backend running?</div>`;
-    return;
-  }
-  applyLaunchCategory();
+// ---------- catalogue (catalogue.js keeps a copy for instant repeat visits) ----------
+function applyCatalogue(rawProducts, rawCategories) {
+  PRODUCTS = rawProducts.map(normalizeProduct);
+  CATEGORIES = rawCategories;
+  SECTION_PRODUCTS = filterProductsBySection(PRODUCTS, SECTION);
+  SECTION_CATEGORIES = categoriesForSection(CATEGORIES, SECTION);
+  productsByCategory = null; // invalidate derived caches
+  categoryCoverMap = null;
+}
+
+function renderCatalogue() {
   renderStories();
   applyFilters();
+}
+
+async function fetchCatalogue() {
+  // CHANGED: /products is paginated (default limit=50); request a limit
+  // generous enough for the whole catalogue, since the storefront
+  // filters/searches client-side.
+  const [prodRes, catRes] = await Promise.all([
+    fetchWithTimeout(`${API_URL}/products?limit=200`),
+    fetchWithTimeout(`${API_URL}/categories`)
+  ]);
+  if (!prodRes.ok || !catRes.ok) throw new Error(`catalogue ${prodRes.status}/${catRes.status}`);
+  const products = (await prodRes.json()).items;
+  const categories = await catRes.json();
+  if (!Array.isArray(products) || !Array.isArray(categories)) throw new Error("catalogue: unexpected response");
+  return { products, categories };
+}
+
+// Render's free plan sleeps when idle; the first request then waits for it
+// to start. Tell people what's happening instead of showing grey boxes.
+function setWakeNotice(show) {
+  const el = document.getElementById("wakeNotice");
+  if (el) el.hidden = !show;
+}
+
+function showLoadError() {
+  document.getElementById("masonry").innerHTML = `
+    <div class="empty-feed" style="column-span:all"><div class="big">⚠</div>
+      <h3>Couldn't reach the store</h3>
+      <p>Check your connection and try again.</p>
+      <button class="btn-solid" style="flex:none" id="retryLoad">Try again</button>
+    </div>`;
+  document.getElementById("retryLoad").addEventListener("click", () => boot());
+}
+
+async function boot() {
+  const cached = readCatalogue(localStorage);
+  if (cached) {
+    applyCatalogue(cached.products, cached.categories);
+    applyLaunchCategory();
+    renderCatalogue();          // instant: last known catalogue
+  } else {
+    renderSkeletons();
+  }
+
+  const wakeTimer = setTimeout(() => setWakeNotice(true), 4000);
+  try {
+    const fresh = await fetchCatalogue();
+    if (catalogueChanged(cached, fresh.products, fresh.categories)) {
+      const y = window.scrollY;
+      applyCatalogue(fresh.products, fresh.categories);
+      if (!cached) applyLaunchCategory();
+      // keep the visitor's category if it still exists in this section
+      if (activeCategory && !SECTION_CATEGORIES.some(c => c.name === activeCategory)) activeCategory = "";
+      renderCatalogue();        // keeps search text and sort order
+      if (cached) window.scrollTo(0, y);
+      writeCatalogue(localStorage, fresh.products, fresh.categories);
+    }
+  } catch (e) {
+    console.error("Error loading storefront data:", e);
+    if (!cached) showLoadError();
+    else toast("Showing saved products — couldn't refresh right now");
+  } finally {
+    clearTimeout(wakeTimer);
+    setWakeNotice(false);
+  }
   refreshWishlist();
   refreshCartCount();
   updateAuthUI();
@@ -111,7 +163,7 @@ function categoryCover(cat) {
       if (!pr.categoryList) continue;
       for (const c of pr.categoryList) {
         if (!categoryCoverMap[c]) {
-          categoryCoverMap[c] = imgSrc(pr.image);
+          categoryCoverMap[c] = imgSrc(pr.image, IMG.story);
         }
       }
     }
@@ -203,7 +255,7 @@ function createProductCard(p) {
   return `
   <div class="pin" data-id="${p.id}">
     <div class="pin-img" style="height:${h}px" onclick="handlePinClick(event, ${p.id})">
-      <img src="${esc(imgSrc(p.image))}" alt="${esc(p.title)}" loading="lazy" style="height:${h}px">
+      <img src="${esc(imgSrc(p.image, IMG.card))}" alt="${esc(p.title)}" loading="lazy" decoding="async" style="height:${h}px">
       ${out ? `<div class="pin-out">Out of stock</div>` : ""}
       <div class="pin-veil">
         <div class="veil-top">
@@ -348,7 +400,7 @@ function moreLikeThisHTML(p) {
       <div class="mlt-row">
         ${similar.map(s => `
           <button class="mlt-card" onclick="openSheet(${s.id})">
-            <img src="${esc(imgSrc(s.image))}" alt="${esc(s.title)}" loading="lazy">
+            <img src="${esc(imgSrc(s.image, IMG.similar))}" alt="${esc(s.title)}" loading="lazy" decoding="async">
             <span class="mlt-name">${esc(s.title)}</span>
             <span class="mlt-price">${inr(s.price)}</span>
           </button>`).join("")}
@@ -364,7 +416,7 @@ function openSheet(id) {
   const stockTxt = p.stock <= 0 ? "Out of stock" : p.stock <= 5 ? `Only ${p.stock} left` : "In stock";
 
   document.getElementById("sheetGrid").innerHTML = `
-    <div class="sh-img"><img src="${esc(imgSrc(p.image))}" alt="${esc(p.title)}"></div>
+    <div class="sh-img"><img src="${esc(imgSrc(p.image, IMG.detail))}" alt="${esc(p.title)}" decoding="async"></div>
     <div class="sh-body">
       <span class="sh-cat">${esc(p.category || "Collection")}</span>
       <h2 class="sh-title">${esc(p.title)}</h2>
@@ -479,7 +531,7 @@ function renderWishlistDrawer() {
     const p = w.product || {};
     return `
     <div class="line-item">
-      <img src="${esc(imgSrc(p.image))}" alt="">
+      <img src="${esc(imgSrc(p.image, IMG.thumb))}" alt="" loading="lazy">
       <div class="li-info">
         <div class="li-title">${esc(p.title)}</div>
         <div class="li-price">${inr(p.price)}</div>
@@ -557,7 +609,7 @@ async function loadCartDrawer() {
       total += p.price * item.quantity;
       return `
       <div class="line-item">
-        <img src="${esc(imgSrc(p.image))}" alt="">
+        <img src="${esc(imgSrc(p.image, IMG.thumb))}" alt="" loading="lazy">
         <div class="li-info">
           <div class="li-title">${esc(p.title)}</div>
           <div class="li-price">${inr(p.price)}</div>

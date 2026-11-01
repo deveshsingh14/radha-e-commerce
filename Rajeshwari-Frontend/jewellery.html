@@ -7,6 +7,9 @@
   <title>Jewellery &amp; Bangles — Radha E-Commerce</title>
   <meta name="description" content="Bangles, earrings, chura and bridal jewellery from Radha E-Commerce.">
 
+  <!-- start connecting to the API and image CDN while the page loads -->
+  <link rel="preconnect" href="https://project-dev-vat-non-prod-01.onrender.com" crossorigin>
+  <link rel="preconnect" href="https://res.cloudinary.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -82,6 +85,9 @@
 
   <!-- ============ MASONRY FEED ============ -->
   <main class="feed-area">
+    <div class="wake-notice" id="wakeNotice" role="status" hidden>
+      <span class="wake-dot"></span> Waking the store up — this can take up to a minute on the first visit…
+    </div>
     <div class="masonry" id="masonry"><!-- cards --></div>
     <div class="feed-end" id="feedEnd" style="display:none;">
       <span>✦</span> You've explored everything — check back for new arrivals
@@ -162,6 +168,7 @@
 
   <script src="api.js"></script>
   <script src="section.js"></script>
+  <script src="catalogue.js"></script>
   <script src="store.js"></script>
   <script src="pwa.js" defer></script>
   <script src="notifications.js" defer></script>
