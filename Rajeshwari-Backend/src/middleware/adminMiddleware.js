@@ -1,23 +1,5 @@
-function adminMiddleware(
-  req,
-  res,
-  next
-) {
+// Admin-only routes (customer data, role changes, account deletion).
+// Role is re-checked in the database on every request (see requireRole).
+const requireRole = require("./requireRole");
 
-  if (req.user.role !== "ADMIN") {
-
-    return res.status(403).json({
-
-      message:
-        "Admin access only"
-
-    });
-
-  }
-
-  next();
-
-}
-
-module.exports =
-  adminMiddleware;
+module.exports = requireRole(["ADMIN"], "Admin access only");

@@ -17,7 +17,7 @@ let createdOrder = null;
 const product = { id: 3, title: "Bangle", image: null, price: 500, stock: 10 };
 let cart = [];
 const tx = {
-  user: { findUnique: async () => ({ email: "c@x.test" }) },
+  user: { findUnique: async ({ where }) => ({ email: "c@x.test", role: ({ 1: "ADMIN", 2: "OWNER", 3: "CUSTOMER" })[where.id] }) },
   cart: { findMany: async () => cart, deleteMany: async () => { cart = []; } },
   order: { create: async ({ data }) => { createdOrder = data; return { id: 1, ...data, orderItems: data.orderItems.create }; } }
 };
@@ -50,7 +50,7 @@ test.before(async () => {
 test.after(() => server.close());
 const call = async (method, url, { role, body } = {}) => {
   const headers = { "Content-Type": "application/json" };
-  if (role) headers.Authorization = `Bearer ${jwt.sign({ id: 9, role }, process.env.JWT_SECRET)}`;
+  if (role) headers.Authorization = `Bearer ${jwt.sign({ id: ({ ADMIN: 1, OWNER: 2, CUSTOMER: 3 })[role], role }, process.env.JWT_SECRET)}`;
   const r = await fetch(base + url, { method, headers, body: body ? JSON.stringify(body) : undefined });
   return { status: r.status, body: await r.json().catch(() => null) };
 };
