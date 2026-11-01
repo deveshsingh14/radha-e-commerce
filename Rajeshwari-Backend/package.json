@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test": "node --test test_testDbSafety.js test_superAdmin.js test_resetLink.js test_orderHistory.js test_deliveryRoutes.js test_categoryRoutes.js test_push.js test_notificationRoutes.js test_orderNotifications.js test_adminMiddleware.js test_adminOrOwnerMiddleware.js test_authMiddleware.js test_authRateLimiter.js test_deliveryMiddleware.js test_errorHandler.js test_stock.js test_uploadMiddleware.js test_userProfileValidation.js test_validateMiddleware.js src/utils/test_email.js",
+    "test": "node --test test_testDbSafety.js test_sentry.js test_superAdmin.js test_resetLink.js test_orderHistory.js test_deliveryRoutes.js test_categoryRoutes.js test_push.js test_notificationRoutes.js test_orderNotifications.js test_adminMiddleware.js test_adminOrOwnerMiddleware.js test_authMiddleware.js test_authRateLimiter.js test_deliveryMiddleware.js test_errorHandler.js test_stock.js test_uploadMiddleware.js test_userProfileValidation.js test_validateMiddleware.js src/utils/test_email.js",
     "test:db": "node --test test_forgotPasswordTiming.js"
   },
   "keywords": [],
