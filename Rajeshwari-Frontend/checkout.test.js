@@ -92,13 +92,12 @@ describe('checkout.js', () => {
         pincode: "123456"
       };
 
-      global.fetch.mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(mockProfile)
-      })).mockImplementationOnce(() => Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve([]) // Mock empty cart for loadSummary
-      }));
+      // answer by URL (boot also asks for the delivery areas)
+      global.fetch.mockImplementation((url) => Promise.resolve(
+        url.endsWith('/users/me') ? { ok: true, json: () => Promise.resolve(mockProfile) }
+        : url.endsWith('/pincode-restrictions/areas') ? { ok: true, json: () => Promise.resolve({ enabled: false, areas: [] }) }
+        : { ok: true, json: () => Promise.resolve([]) } // empty cart for loadSummary
+      ));
 
       await boot();
 
@@ -112,7 +111,9 @@ describe('checkout.js', () => {
     });
 
     it('shows toast on fetch profile error', async () => {
-      global.fetch.mockImplementationOnce(() => Promise.reject(new Error("Network error")));
+      global.fetch.mockImplementation((url) => url.endsWith('/users/me')
+        ? Promise.reject(new Error("Network error"))
+        : Promise.resolve({ ok: true, json: () => Promise.resolve(url.endsWith('/areas') ? { enabled: false, areas: [] } : []) }));
 
       await boot();
 
@@ -271,5 +272,56 @@ describe('checkout.js', () => {
       expect(document.getElementById("placeBtn").disabled).toBe(false);
       expect(document.getElementById("placeBtn").textContent).toBe("Place order");
     });
+  });
+});
+
+describe('delivery areas at checkout', () => {
+  const co = require('./checkout');
+  const AREAS = [{ pincode: '480884', area: 'Area A', city: 'City A', state: 'State A' }, { pincode: '110001', area: null, city: null, state: null }];
+  beforeEach(() => {
+    document.body.insertAdjacentHTML('beforeend', '');
+    for (const [id, tag] of [['pincodeHint', 'small'], ['areaNotice', 'div']]) {
+      if (!document.getElementById(id)) { const el = document.createElement(tag); el.id = id; document.body.appendChild(el); }
+    }
+    co._setDelivery({ enabled: true, areas: AREAS });
+    co._setCartEmpty(false);
+    document.getElementById('city').value = 'Ahmedabad';
+    document.getElementById('state').value = 'Gujarat';
+  });
+  test('helpers', () => {
+    expect(co.findArea(AREAS, ' 480884 ')).toBe(AREAS[0]);
+    expect(co.findArea(AREAS, '380001')).toBeNull();
+    expect(co.describeArea(AREAS[0])).toBe('480884 (Area A, City A, State A)');
+    expect(co.describeArea(AREAS[1])).toBe('110001');
+    expect(co.deliveryList(AREAS, 1)).toBe('480884 (Area A, City A, State A) and 1 more');
+  });
+  test('known pincode locks city and state to it', () => {
+    document.getElementById('pincode').value = '480884';
+    co.applyPincode();
+    expect(document.getElementById('city').value).toBe('City A');
+    expect(document.getElementById('state').value).toBe('State A');
+    expect(document.getElementById('city').readOnly).toBe(true);
+    expect(document.getElementById('pincodeHint').textContent).toMatch(/We deliver here/);
+    expect(document.getElementById('placeBtn').disabled).toBe(false);
+  });
+  test('unknown pincode: clear message, Place order disabled, fields unlocked', () => {
+    document.getElementById('pincode').value = '380001';
+    co.applyPincode();
+    expect(document.getElementById('pincodeHint').textContent).toMatch(/don't deliver to 380001.*480884/);
+    expect(document.getElementById('placeBtn').disabled).toBe(true);
+    expect(document.getElementById('city').readOnly).toBe(false);
+  });
+  test('allowed pincode without city/state on record: allowed, not locked', () => {
+    document.getElementById('pincode').value = '110001';
+    co.applyPincode();
+    expect(document.getElementById('placeBtn').disabled).toBe(false);
+    expect(document.getElementById('city').readOnly).toBe(false);
+  });
+  test('restriction off: nothing is checked or locked', () => {
+    co._setDelivery({ enabled: false, areas: [] });
+    document.getElementById('pincode').value = '380001';
+    co.applyPincode();
+    expect(document.getElementById('placeBtn').disabled).toBe(false);
+    expect(document.getElementById('pincodeHint').textContent).toBe('');
   });
 });
