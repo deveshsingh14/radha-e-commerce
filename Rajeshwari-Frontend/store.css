@@ -181,7 +181,7 @@ img { display: block; }
   background: var(--heart); color: #fff; font-weight: 700; font-size: 13px;
   transition: transform .15s, background .15s;
 }
-.save-btn:hover { transform: scale(1.05); }
+@media (hover: hover) { .save-btn:hover { transform: scale(1.05); } }
 .save-btn.saved { background: var(--ink); }
 
 .veil-bottom { display: flex; justify-content: flex-end; gap: 8px; }
@@ -288,10 +288,26 @@ img { display: block; }
 .btn-line {
   border: 1.5px solid var(--line); background: #fff; border-radius: 999px;
   font-size: 17px; width: 52px; height: 52px; display: grid; place-items: center;
-  transition: border-color .15s, transform .1s;
+  transition: border-color .15s, background-color .15s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
 }
-.btn-line:hover { border-color: var(--heart); }
+/* hover only where a real pointer hovers — on phones it "sticks" after a tap */
+@media (hover: hover) { .btn-line:hover { border-color: var(--heart); } }
 .btn-line.saved { color: var(--heart); border-color: var(--heart); }
+
+/* Save (heart) button: outline when not saved, filled when saved */
+.heart-btn { color: var(--ink); }
+.heart-btn .heart-svg {
+  width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2;
+  stroke-linejoin: round; transition: fill .15s, stroke .15s;
+}
+.heart-btn.saved { background: #fdeef3; color: var(--heart); border-color: var(--heart); }
+.heart-btn.saved .heart-svg { fill: currentColor; }
+.heart-btn:focus-visible, .save-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.save-btn { -webkit-tap-highlight-color: transparent; }
+.pop { animation: heartPop .28s ease; }
+@keyframes heartPop { 0% { transform: scale(1); } 45% { transform: scale(1.22); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .pop { animation: none; } }
 
 /* ============ DRAWERS ============ */
 .drawer-back {

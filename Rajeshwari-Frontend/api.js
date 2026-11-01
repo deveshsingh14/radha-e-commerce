@@ -44,7 +44,7 @@ function handle401(res) {
     localStorage.removeItem("token");
 
     // store.js specific reset
-    if (typeof savedProductIds !== 'undefined') savedProductIds = new Set();
+    if (typeof WISH !== 'undefined') WISH.clear();
     if (typeof WISHLIST !== 'undefined') WISHLIST = [];
 
     if (typeof updateAuthUI === 'function') updateAuthUI();
