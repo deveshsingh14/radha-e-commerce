@@ -24,7 +24,17 @@ let productsByCategory = null; // index for "More like this" (this section)
 let CATEGORIES = [];        // all categories
 let SECTION_CATEGORIES = []; // categories shown on this page
 let WISHLIST = [];          // raw wishlist rows {id, productId, product}
-let savedProductIds = new Map(); // maps productId -> wishlistItemId
+// Saved items: instant hearts, synced in the background (wishlist.js).
+const WISH = createWishlistSync({
+  apiUrl: API_URL,
+  headers: json => authHeaders(json),
+  onChange: id => updateHeartUI(id),
+  onError: err => {
+    if (err && err.status === 401) { handle401({ status: 401 }); return; }
+    toast("Couldn't update your saved items — please try again", "err");
+  }
+});
+const HEART_SVG = `<svg class="heart-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 20.6s-7.4-4.5-9.6-9.1C.9 8.2 2.6 4.3 6.3 4c2.2-.2 4.1 1 5.7 3 1.6-2 3.5-3.2 5.7-3 3.7.3 5.4 4.2 3.9 7.5-2.2 4.6-9.6 9.1-9.6 9.1z"/></svg>`;
 let activeCategory = "";    // category name; "" = all
 let searchQuery = "";
 let isLogin = true;
@@ -250,7 +260,7 @@ function applyFilters() {
 
 function createProductCard(p) {
   const h = pinHeight(p.id);
-  const saved = savedProductIds.has(p.id);
+  const saved = WISH.isSaved(p.id);
   const out = p.stock <= 0;
   return `
   <div class="pin" data-id="${p.id}">
@@ -340,7 +350,7 @@ function doubleTapSave(id) {
     void burst.offsetWidth; // restart animation
     burst.classList.add("go");
   }
-  if (!savedProductIds.has(id)) toggleWishlist(id);
+  if (!WISH.isSaved(id)) toggleWishlist(id);
 }
 
 // ============================================================
@@ -411,7 +421,7 @@ function moreLikeThisHTML(p) {
 function openSheet(id) {
   const p = PRODUCTS.find(x => x.id === id);
   if (!p) return;
-  const saved = savedProductIds.has(p.id);
+  const saved = WISH.isSaved(p.id);
   const stockCls = p.stock <= 0 ? "out" : p.stock <= 5 ? "low" : "ok";
   const stockTxt = p.stock <= 0 ? "Out of stock" : p.stock <= 5 ? `Only ${p.stock} left` : "In stock";
 
@@ -433,10 +443,12 @@ function openSheet(id) {
         <button class="btn-solid" ${p.stock <= 0 ? "disabled" : ""} onclick="addToCart(${p.id})">
           ${p.stock <= 0 ? "Out of stock" : "Add to bag · " + inr(p.price)}
         </button>
-        <button class="btn-line ${saved ? "saved" : ""}" id="sheetHeart" onclick="toggleSaveFromSheet(${p.id})">♥</button>
+        <button type="button" class="btn-line heart-btn ${saved ? "saved" : ""}" id="sheetHeart" data-id="${p.id}"
+          aria-pressed="${saved}" aria-label="${saved ? "Remove from saved" : "Save"}">${HEART_SVG}</button>
       </div>
       ${moreLikeThisHTML(p)}
     </div>`;
+  document.getElementById("sheetHeart").addEventListener("click", () => toggleSaveFromSheet(p.id));
   // data-attribute + listener (not inline onclick) so a category name can
   // never be interpreted as script.
   document.querySelectorAll("#sheetGrid .sh-chip").forEach(btn =>
@@ -456,14 +468,15 @@ document.getElementById("productSheet").addEventListener("click", function (e) {
 //  WISHLIST  (one system: the API)
 // ============================================================
 async function refreshWishlist() {
-  if (!token()) { WISHLIST = []; savedProductIds = new Map(); updateWishCount(); return; }
+  if (!token()) { WISHLIST = []; WISH.clear(); updateWishCount(); return; }
   try {
     const res = await fetch(`${API_URL}/wishlist`, { headers: authHeaders() });
     if (handle401(res)) return;
     if (!res.ok) return;
     WISHLIST = await res.json();
-    savedProductIds = new Map(WISHLIST.map(w => [w.productId ?? w.product?.id, w.id]));
+    WISH.loadFromServer(WISHLIST);
     updateWishCount();
+    WISH.ids().forEach(updateHeartUI);
   } catch (e) {
     console.error("Error refreshing wishlist:", e);
     toast("Couldn't refresh wishlist");
@@ -471,8 +484,32 @@ async function refreshWishlist() {
 }
 function updateWishCount() {
   const el = document.getElementById("wishCount");
-  el.textContent = savedProductIds.size || "";
-  el.dataset.zero = savedProductIds.size ? "0" : "1";
+  const n = WISH.count();
+  el.textContent = n || "";
+  el.dataset.zero = n ? "0" : "1";
+}
+// Update every heart / "Save" button for one product, in place (no feed re-render).
+function updateHeartUI(productId) {
+  const saved = WISH.isSaved(productId);
+  const h = document.getElementById("sheetHeart");
+  if (h && Number(h.dataset.id) === productId) {
+    h.classList.toggle("saved", saved);
+    h.setAttribute("aria-pressed", String(saved));
+    h.setAttribute("aria-label", saved ? "Remove from saved" : "Save");
+  }
+  document.querySelectorAll(`.pin[data-id="${Number(productId)}"] .save-btn`).forEach(b => {
+    b.classList.toggle("saved", saved);
+    b.textContent = saved ? "Saved" : "Save";
+  });
+  updateWishCount();
+}
+function popHeart(productId) {
+  const els = [document.getElementById("sheetHeart"),
+    ...document.querySelectorAll(`.pin[data-id="${Number(productId)}"] .save-btn`)];
+  els.forEach(el => {
+    if (!el || (el.id === "sheetHeart" && Number(el.dataset.id) !== productId)) return;
+    el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  });
 }
 function toggleSave(e, id) {
   e.stopPropagation();
@@ -481,37 +518,18 @@ function toggleSave(e, id) {
 function toggleSaveFromSheet(id) {
   toggleWishlist(id);
 }
-async function toggleWishlist(productId) {
+// Instant: the heart flips now; wishlist.js syncs with the server and
+// collapses rapid repeat taps into at most two requests.
+function toggleWishlist(productId) {
   if (!token()) { toast("Please login first"); openAuth(); return; }
-  const isSaved = savedProductIds.has(productId);
-  try {
-    if (isSaved) {
-      const wishlistItemId = savedProductIds.get(productId);
-      if (!wishlistItemId) return;
-      const res = await fetch(`${API_URL}/wishlist/${wishlistItemId}`, { method: "DELETE", headers: authHeaders() });
-      if (!res.ok) throw new Error("Delete failed");
-      toast("Removed from saved");
-    } else {
-      const res = await fetch(`${API_URL}/wishlist`, {
-        method: "POST", headers: authHeaders(true),
-        body: JSON.stringify({ productId })
-      });
-      if (handle401(res)) return;
-      if (!res.ok && res.status !== 400) throw new Error("Post failed");
-      toast("Saved ♥");
-    }
-    await refreshWishlist();
-    applyFilters();
-    renderWishlistDrawer();
-    syncSheetHeart(productId);
-  } catch (e) {
-    console.error("Error toggling wishlist:", e);
-    toast("Couldn't update wishlist");
+  const saved = WISH.toggle(productId);
+  popHeart(productId);
+  if (saved && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not supported */ } }
+  toast(saved ? "Saved ♥" : "Removed from saved");
+  if (!saved) {
+    WISHLIST = WISHLIST.filter(w => (w.productId ?? w.product?.id) !== productId);
+    if (document.getElementById("wishBack").classList.contains("open")) renderWishlistDrawer();
   }
-}
-function syncSheetHeart(id) {
-  const h = document.getElementById("sheetHeart");
-  if (h) h.classList.toggle("saved", savedProductIds.has(id));
 }
 
 function openWishlist() {
@@ -545,7 +563,7 @@ function renderWishlistDrawer() {
 }
 async function moveToBag(wishId, productId) {
   await addToCart(productId, true);
-  if (savedProductIds.has(productId)) await toggleWishlist(productId);
+  if (WISH.isSaved(productId)) toggleWishlist(productId);
 }
 
 // ============================================================
@@ -797,7 +815,7 @@ function finishLogin(jwt) {
 async function logout() {
   await beforeLogout();
   localStorage.removeItem("token");
-  savedProductIds = new Map(); WISHLIST = [];
+  WISH.clear(); WISHLIST = [];
   updateAuthUI(); updateWishCount(); refreshCartCount(); applyFilters();
   toast("Logged out");
 }

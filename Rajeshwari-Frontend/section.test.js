@@ -102,8 +102,12 @@ describe("index.html and jewellery.html", () => {
     expect(index).toMatch(/<body data-section="general">/);
     expect(jewel).toMatch(/<body data-section="jewellery">/);
   });
-  test("load section.js before store.js", () => {
+  test("load section.js, catalogue.js and wishlist.js before store.js", () => {
     for (const html of [index, jewel]) {
+      for (const dep of ["catalogue.js", "wishlist.js"]) {
+        expect(html.indexOf(`src="${dep}"`)).toBeGreaterThan(-1);
+        expect(html.indexOf(`src="${dep}"`)).toBeLessThan(html.indexOf('src="store.js"'));
+      }
       expect(html.indexOf('src="section.js"')).toBeGreaterThan(-1);
       expect(html.indexOf('src="section.js"')).toBeLessThan(html.indexOf('src="store.js"'));
     }
