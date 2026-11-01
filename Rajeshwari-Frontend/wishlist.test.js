@@ -99,3 +99,36 @@ test('loadFromServer, count, ids and clear (logout)', () => {
   w.clear();
   expect(w.count()).toBe(0);
 });
+
+describe('save after login (pending heart tap)', () => {
+  const { rememberPendingSave, takePendingSave, forgetPendingSave, PENDING_SAVE_KEY } = require('./wishlist');
+  const mem = () => { const m = new Map(); return { getItem: k => m.get(k) ?? null, setItem: (k, v) => m.set(k, v), removeItem: k => m.delete(k), m }; };
+  const NOW = 1_800_000_000_000;
+
+  test('remembers one product and hands it over exactly once', () => {
+    const s = mem();
+    rememberPendingSave(s, 7, NOW);
+    rememberPendingSave(s, 9, NOW);          // only the latest tap is kept
+    expect(takePendingSave(s, NOW + 1000)).toBe(9);
+    expect(takePendingSave(s, NOW + 2000)).toBeNull();
+    expect(s.m.has(PENDING_SAVE_KEY)).toBe(false);
+  });
+  test('expires after 30 minutes', () => {
+    const s = mem(); rememberPendingSave(s, 7, NOW);
+    expect(takePendingSave(s, NOW + 31 * 60000)).toBeNull();
+  });
+  test('dismissing the login window forgets it', () => {
+    const s = mem(); rememberPendingSave(s, 7, NOW); forgetPendingSave(s);
+    expect(takePendingSave(s, NOW)).toBeNull();
+  });
+  test('junk or blocked storage never throws', () => {
+    const s = mem(); s.setItem(PENDING_SAVE_KEY, '{oops');
+    expect(takePendingSave(s, NOW)).toBeNull();
+    s.setItem(PENDING_SAVE_KEY, JSON.stringify({ id: -3, at: NOW }));
+    expect(takePendingSave(s, NOW)).toBeNull();
+    const blocked = { getItem() { throw new Error('x'); }, setItem() { throw new Error('x'); }, removeItem() { throw new Error('x'); } };
+    expect(rememberPendingSave(blocked, 7)).toBe(false);
+    expect(takePendingSave(blocked)).toBeNull();
+    expect(() => forgetPendingSave(blocked)).not.toThrow();
+  });
+});
