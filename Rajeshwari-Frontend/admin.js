@@ -779,41 +779,63 @@ async function promptAddCustomer() {
   }
 }
 
+// The server flags the master admin (isSuperAdmin) — no email is hard-coded
+// here. Rows carry only numeric ids in data-attributes; one delegated
+// listener looks the customer up, so names never end up inside script.
+function canManage(c) {
+  return adminUser && adminUser.role === "ADMIN" && !c.isSuperAdmin && c.id !== adminUser.id;
+}
 function renderCustomers() {
   const q = document.getElementById("customerSearch").value.toLowerCase().trim();
   const rows = CUSTOMERS.filter(c => !q || `${c.name} ${c.email}`.toLowerCase().includes(q));
-  document.querySelector("#customersTable tbody").innerHTML = rows.length
+  const tbody = document.querySelector("#customersTable tbody");
+  tbody.innerHTML = rows.length
     ? rows.map(c => `
-      <tr>
+      <tr data-customer="${Number(c.id)}">
         <td class="row-flex">
           <div class="admin-chip" style="border:none;padding:0"><div class="avatar" style="width:34px;height:34px">${esc((c.name || "?")[0].toUpperCase())}</div></div>
-          <div><div class="cell-strong">${esc(c.name)}</div><div class="cell-sub">${esc(c.email)}</div></div>
+          <div><div class="cell-strong">${esc(c.name)}${c.isSuperAdmin ? ' <span class="badge b-info">Master admin</span>' : ""}</div><div class="cell-sub">${esc(c.email)}</div></div>
         </td>
         <td>
-          ${adminUser.role === "ADMIN" && c.email !== "devesh141singh@gmail.com" && c.id !== adminUser.id ? 
-            `<select class="role-select" style="padding:4px 8px; border-radius:6px; border:1px solid var(--border); font-size:12px; font-weight:500; cursor:pointer; background:var(--surface);" onchange="changeRole(${c.id}, this.value, ${esc(JSON.stringify(c.role))}, ${esc(JSON.stringify(c.name || ""))})">
-              <option value="ADMIN" ${c.role === 'ADMIN' ? 'selected' : ''}>Admin</option>
-              <option value="OWNER" ${c.role === 'OWNER' ? 'selected' : ''}>Owner</option>
-              <option value="CUSTOMER" ${c.role === 'CUSTOMER' ? 'selected' : ''}>Customer</option>
-              <option value="DELIVERY_PARTNER" ${c.role === 'DELIVERY_PARTNER' ? 'selected' : ''}>Delivery partner</option>
-            </select>` :
-            `<span class="badge ${c.role === "ADMIN" ? "b-info" : c.role === "OWNER" ? "b-ok" : c.role === "DELIVERY_PARTNER" ? "b-warn" : "b-mute"}">${esc(ROLE_LABELS[c.role] || "Customer")}</span>`
-          }
+          ${canManage(c)
+            ? `<select class="role-select" data-action="role" style="padding:4px 8px; border-radius:6px; border:1px solid var(--border); font-size:12px; font-weight:500; cursor:pointer; background:var(--surface);">
+              ${Object.keys(ROLE_LABELS).map(r => `<option value="${r}" ${c.role === r ? "selected" : ""}>${esc(ROLE_LABELS[r])}</option>`).join("")}
+            </select>`
+            : `<span class="badge ${c.role === "ADMIN" ? "b-info" : c.role === "OWNER" ? "b-ok" : c.role === "DELIVERY_PARTNER" ? "b-warn" : "b-mute"}">${esc(ROLE_LABELS[c.role] || "Customer")}</span>`}
         </td>
-        <td class="num">${c.orderCount}</td>
+        <td class="num">${Number(c.orderCount) || 0}</td>
         <td class="num cell-strong">${inr(c.totalSpent)}</td>
         <td class="cell-sub">${shortDate(c.lastOrderAt)}</td>
         <td class="cell-sub">${shortDate(c.createdAt)}</td>
         <td>
           <div class="btn-row">
-            <button class="btn btn-sm" onclick="viewCustomer(${c.id}, ${esc(JSON.stringify(c.name))})">Orders</button>
-            ${adminUser.role === "ADMIN" && c.email !== "devesh141singh@gmail.com" && c.id !== adminUser.id ? 
-              `<button class="btn btn-sm btn-err" style="background-color: #ffebe9; color: #cf222e; border: 1px solid rgba(207, 34, 46, 0.2);" onclick="deleteCustomer(${c.id}, ${esc(JSON.stringify(c.name))})">Delete</button>` : ''
-            }
+            <button class="btn btn-sm" data-action="orders">Orders</button>
+            ${canManage(c)
+              ? `<button class="btn btn-sm btn-err" data-action="delete" style="background-color: #ffebe9; color: #cf222e; border: 1px solid rgba(207, 34, 46, 0.2);">Delete</button>`
+              : ""}
           </div>
         </td>
       </tr>`).join("")
     : emptyRow(7, "No customers found");
+  bindCustomerActions(tbody);
+}
+const customerActions = {
+  role: (c, el) => changeRole(c.id, el.value, c.role, c.name || ""),
+  orders: c => viewCustomer(c.id, c.name || ""),
+  delete: c => deleteCustomer(c.id, c.name || "")
+};
+function bindCustomerActions(tbody) {
+  if (tbody._customerActionsBound) return;
+  tbody._customerActionsBound = true;
+  const handle = (e, eventType) => {
+    const el = e.target.closest("[data-action]");
+    if (!el || (eventType === "change") !== (el.tagName === "SELECT")) return;
+    const row = el.closest("tr[data-customer]");
+    const c = row && CUSTOMERS.find(x => x.id === Number(row.dataset.customer));
+    if (c && customerActions[el.dataset.action]) customerActions[el.dataset.action](c, el);
+  };
+  tbody.addEventListener("click", e => handle(e, "click"));
+  tbody.addEventListener("change", e => handle(e, "change"));
 }
 document.getElementById("customerSearch").addEventListener("input", renderCustomers);
 
@@ -1092,6 +1114,7 @@ if (typeof module !== "undefined") {
     setCategoryJewellery,
     renderCategories,
     renderCustomers,
+    customerActions,
     _setState: (state) => {
       if (state.CATEGORIES) CATEGORIES = state.CATEGORIES;
       if (state.PRODUCTS) PRODUCTS = state.PRODUCTS;
