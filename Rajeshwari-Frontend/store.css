@@ -148,7 +148,10 @@ img { display: block; }
 
 /* ============ MASONRY FEED ============ */
 .feed-area { padding: 16px 22px 60px; max-width: 1500px; margin: 0 auto; }
-.masonry { columns: 5 240px; column-gap: 16px; }
+/* columns are built by masonry.js so sorted order reads across, then down */
+.masonry { display: flex; align-items: flex-start; gap: 16px; }
+.masonry .mcol { flex: 1 1 0; min-width: 0; }
+.masonry > .empty-feed { flex: 1 1 100%; }
 
 .pin {
   break-inside: avoid; margin-bottom: 16px;
@@ -402,7 +405,7 @@ img { display: block; }
 @media (max-width: 880px) {
   .logo-text { display: none; }
   .icon-btn .ib-label { display: none; }
-  .masonry { columns: 3 170px; column-gap: 12px; }
+  .masonry { gap: 12px; }
   .pin { margin-bottom: 12px; }
   .sheet-grid { grid-template-columns: 1fr; }
   .sheet-grid .sh-img img { min-height: 300px; max-height: 46vh; }
@@ -414,7 +417,6 @@ img { display: block; }
   .topbar { padding: 10px 14px; gap: 10px; }
 }
 @media (max-width: 480px) {
-  .masonry { columns: 2 140px; }
   .login-cta { padding: 8px 13px; font-size: 12.5px; }
 }
 

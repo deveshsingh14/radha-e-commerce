@@ -156,9 +156,38 @@ async function boot() {
 
 function renderSkeletons() {
   const m = document.getElementById("masonry");
-  m.innerHTML = Array.from({ length: 10 }, (_, i) =>
-    `<div class="skel" style="height:${HEIGHTS[i % HEIGHTS.length]}px"></div>`).join("");
+  layoutMasonry(m, Array.from({ length: 10 }, (_, i) =>
+    `<div class="skel" style="height:${HEIGHTS[i % HEIGHTS.length]}px"></div>`));
 }
+
+// ---------- masonry (masonry.js): sorted order reads across, then down ----------
+let lastFeedItems = null;
+let lastColumnCount = 0;
+function feedColumnCount(m) {
+  return masonryColumnCount(window.innerWidth, m.clientWidth || window.innerWidth);
+}
+function layoutMasonry(m, cardsHtml) {
+  const n = feedColumnCount(m);
+  lastColumnCount = n;
+  m.innerHTML = Array.from({ length: n }, () => '<div class="mcol"></div>').join("");
+  const cols = [...m.children];
+  const tpl = document.createElement("template");
+  placeInColumns(cardsHtml, n, (html, c) => {
+    tpl.innerHTML = html.trim();
+    const el = tpl.content.firstElementChild;
+    cols[c].appendChild(el);
+    // card image heights are fixed in the markup, so this is known now
+    return el.offsetHeight + parseFloat(getComputedStyle(el).marginBottom || 0);
+  });
+}
+let resizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const m = document.getElementById("masonry");
+    if (lastFeedItems && lastFeedItems.length && feedColumnCount(m) !== lastColumnCount) renderFeed(lastFeedItems);
+  }, 150);
+});
 
 // ============================================================
 //  CATEGORY STORIES + CHIPS  (driven by the real DB categories)
@@ -298,7 +327,7 @@ function renderFeed(items) {
 
   if (!items.length) {
     m.innerHTML = `
-      <div class="empty-feed" style="column-span:all">
+      <div class="empty-feed">
         <div class="big"><svg class="ico" aria-hidden="true"><use href="#i-${SECTION === "jewellery" ? "jewel" : "search"}"/></svg></div>
         <h3>${esc(filtersActive() ? "Nothing here yet" : SECTIONS[SECTION].emptyTitle)}</h3>
         <p>${esc(filtersActive() ? "Try a different search or category." : SECTIONS[SECTION].emptyText)}</p>
@@ -312,7 +341,8 @@ function renderFeed(items) {
     return;
   }
 
-  m.innerHTML = items.map(createProductCard).join("");
+  layoutMasonry(m, items.map(createProductCard));
+  lastFeedItems = items;
 
   end.style.display = "block";
 
