@@ -61,7 +61,7 @@ async function loadOrders() {
     const orders = await res.json();
 
     if (!orders.length) {
-      box.innerHTML = `<div class="empty-feed"><div class="big">🛍</div>
+      box.innerHTML = `<div class="empty-feed"><div class="big"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></svg></div>
         <h3>No orders yet</h3><p>Your orders will appear here after checkout.</p>
         <a class="btn-solid" style="flex:none;text-decoration:none;display:inline-block;" href="index.html">Start exploring</a></div>`;
       return;

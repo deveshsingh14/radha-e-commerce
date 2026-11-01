@@ -386,7 +386,7 @@ img { display: block; }
   border: none; background: none; color: var(--muted);
   font-size: 10.5px; font-weight: 600; display: flex; flex-direction: column; gap: 2px; align-items: center;
 }
-.bn-item span { font-size: 20px; }
+.bn-item span { line-height: 1.2; } /* label under the icon */
 .bn-item.active, .bn-item:hover { color: var(--ink); }
 
 /* ============ TOAST ============ */
@@ -599,3 +599,18 @@ a.bn-item, a.icon-btn { text-decoration: none; }
 }
 @keyframes wakePulse { 50% { opacity: .25; } }
 @media (prefers-reduced-motion: reduce) { .wake-dot { animation: none; } }
+
+/* ============ ICONS (inline SVG sprite: same on every device) ============ */
+.ico {
+  width: 22px; height: 22px; flex: 0 0 auto; display: inline-block; vertical-align: middle;
+  fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.icon-btn .ib-ico { display: inline-flex; font-size: 0; }
+.bn-item .ico { width: 24px; height: 24px; }
+.bn-item.active .ico { stroke-width: 2.2; }
+.search-wrap .s-ico { display: inline-flex; }
+.search-wrap .s-ico .ico { width: 18px; height: 18px; }
+.veil-round .ico { width: 18px; height: 18px; }
+.empty-feed .big .ico, .drawer-empty .big .ico { width: 40px; height: 40px; stroke-width: 1.5; color: var(--muted); }
+/* links and buttons in the bottom bar must line up identically */
+.bn-item { font-family: inherit; line-height: 1.2; text-decoration: none; padding: 0; justify-content: flex-start; }

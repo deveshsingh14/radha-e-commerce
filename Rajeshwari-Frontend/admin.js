@@ -888,7 +888,7 @@ async function changeRole(id, newRole, oldRole, name) {
 }
 
 async function deleteCustomer(id, name) {
-  if (!confirm(`Are you absolutely sure you want to permanently delete ${name}? Their account, bag and saved items are removed. Their past orders are kept for your records (marked "Deleted account").`)) {
+  if (!confirm(`Are you absolutely sure you want to permanently delete ${name}? Their account, cart and saved items are removed. Their past orders are kept for your records (marked "Deleted account").`)) {
     return;
   }
   try {

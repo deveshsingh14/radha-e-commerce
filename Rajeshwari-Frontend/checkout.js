@@ -1,5 +1,5 @@
 /* Checkout — uses the same API. Guards for login, pre-fills saved
-   delivery details from /users/me, shows the bag summary, and places
+   delivery details from /users/me, shows the cart summary, and places
    the order with the chosen payment method. */
 
 // API_URL, esc(), NO_IMAGE_PLACEHOLDER and imgSrc() live in api.js.
@@ -7,7 +7,7 @@
 const UPI_ID = "radha@upi";
 const UPI_NAME = "Radha Bangles Jewellery";
 
-// ---- guard: must be logged in with items in the bag ----
+// ---- guard: must be logged in with items in the cart ----
 if (!token()) {
   window.location.href = "index.html";
 }
@@ -43,7 +43,7 @@ async function loadSummary() {
 
     if (!CART.length) {
       document.getElementById("summaryItems").innerHTML =
-        `<p style="color:var(--muted);font-size:13px;">Your bag is empty. <a href="index.html" style="color:var(--maroon);font-weight:700;">Go add something ♥</a></p>`;
+        `<p style="color:var(--muted);font-size:13px;">Your cart is empty. <a href="index.html" style="color:var(--maroon);font-weight:700;">Go add something ♥</a></p>`;
       document.getElementById("placeBtn").disabled = true;
       return;
     }
