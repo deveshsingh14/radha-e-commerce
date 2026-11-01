@@ -241,21 +241,51 @@ describe('Customers: role dropdown is safe against hostile names', () => {
     [`x');alert(1);//`],
     [`a"); alert(1); ("`],
     [`</select><img src=x onerror=alert(1)>`]
-  ])('name %s reaches changeRole as plain text and runs nothing', (evil) => {
+  ])('name %s is never part of any script and reaches changeRole as plain text', (evil) => {
     admin._setState({ adminUser: { id: 1, role: 'ADMIN' }, CUSTOMERS: [{ id: 5, name: evil, email: 'e@x.test', role: 'CUSTOMER' }] });
     admin.renderCustomers();
-    const select = document.querySelector('#customersTable select.role-select');
-    expect(select).not.toBeNull();
-    expect(document.querySelector('#customersTable img')).toBeNull();
-    expect([...select.options].map(o => o.value)).toContain('DELIVERY_PARTNER');
+    const table = document.querySelector('#customersTable');
+    expect(table.querySelector('img')).toBeNull();
+    expect(table.querySelectorAll('[onchange],[onclick]').length).toBe(0); // no inline handlers at all
+    const select = table.querySelector('select.role-select');
+    expect([...select.options].map(o => o.value)).toEqual(['ADMIN', 'OWNER', 'DELIVERY_PARTNER', 'CUSTOMER']);
 
-    // Execute the browser-decoded handler exactly as the page would, with spies.
-    const changeRole = jest.fn();
-    const alert = jest.fn();
-    const handler = new Function('changeRole', 'alert', select.getAttribute('onchange'));
-    handler.call({ value: 'DELIVERY_PARTNER' }, changeRole, alert);
-    expect(alert).not.toHaveBeenCalled();
-    expect(changeRole).toHaveBeenCalledWith(5, 'DELIVERY_PARTNER', 'CUSTOMER', evil);
+    const role = jest.fn();
+    const orig = admin.customerActions.role;
+    admin.customerActions.role = role;
+    select.value = 'DELIVERY_PARTNER';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    admin.customerActions.role = orig;
+    expect(role).toHaveBeenCalledTimes(1);
+    expect(role.mock.calls[0][0]).toMatchObject({ id: 5, name: evil });
+    expect(role.mock.calls[0][1]).toBe(select);
+  });
+
+  it('the master admin (flagged by the server) cannot be demoted or deleted from the UI', () => {
+    admin._setState({ adminUser: { id: 1, role: 'ADMIN' }, CUSTOMERS: [
+      { id: 2, name: 'Devesh', email: 'devesh@x.test', role: 'ADMIN', isSuperAdmin: true },
+      { id: 3, name: 'Other admin', email: 'o@x.test', role: 'ADMIN', isSuperAdmin: false }
+    ] });
+    admin.renderCustomers();
+    const row = id => document.querySelector(`#customersTable tr[data-customer="${id}"]`);
+    expect(row(2).querySelector('select')).toBeNull();
+    expect(row(2).querySelector('[data-action="delete"]')).toBeNull();
+    expect(row(2).textContent).toContain('Master admin');
+    expect(row(3).querySelector('select')).not.toBeNull();
+    expect(row(3).querySelector('[data-action="delete"]')).not.toBeNull();
+  });
+
+  it('Orders and Delete buttons reach their actions with the right customer', () => {
+    admin._setState({ adminUser: { id: 1, role: 'ADMIN' }, CUSTOMERS: [{ id: 9, name: 'Asha', email: 'a@x.test', role: 'CUSTOMER' }] });
+    admin.renderCustomers();
+    const orders = jest.fn(), del = jest.fn();
+    const o1 = admin.customerActions.orders, o2 = admin.customerActions.delete;
+    admin.customerActions.orders = orders; admin.customerActions.delete = del;
+    document.querySelector('[data-action="orders"]').click();
+    document.querySelector('[data-action="delete"]').click();
+    admin.customerActions.orders = o1; admin.customerActions.delete = o2;
+    expect(orders.mock.calls[0][0]).toMatchObject({ id: 9 });
+    expect(del.mock.calls[0][0]).toMatchObject({ id: 9 });
   });
 
   it('shows a Delivery partner badge for partners (when not editable)', () => {

@@ -2,24 +2,16 @@ const express = require("express");
 
 const prisma = require("../config/db");
 const logger = require("../config/logger");
+const { getSuperAdminId } = require("../utils/superAdmin");
 
 const authMiddleware = require("../middleware/authMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
 const bcrypt = require("bcrypt");
 const { z } = require("zod");
 const { validateBody } = require("../middleware/validate");
-const crypto = require("crypto");
 
 const router = express.Router();
 
-function secureCompare(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') {
-    return false;
-  }
-  const aHash = crypto.createHash('sha256').update(a).digest();
-  const bHash = crypto.createHash('sha256').update(b).digest();
-  return crypto.timingSafeEqual(aHash, bHash);
-}
 
 const userProfileUpdateSchema = z.object({
   name: z.string().trim().min(1, "Name cannot be empty").optional(),
@@ -105,6 +97,7 @@ router.get(
         orderBy: { createdAt: "desc" }
       });
 
+      const superAdminId = await getSuperAdminId(prisma);
       const customers = users.map(u => {
         const orders = u.orders || [];
 
@@ -124,6 +117,9 @@ router.get(
           name: u.name,
           email: u.email,
           role: u.role,
+          // lets the admin UI hide demote/delete for the master admin
+          // without the email ever being hard-coded in public JavaScript
+          isSuperAdmin: u.id === superAdminId,
           createdAt: u.createdAt,
           orderCount: orders.length,
           totalSpent,
@@ -221,8 +217,8 @@ router.put(
       const targetUser = await prisma.user.findUnique({ where: { id } });
       if (!targetUser) return res.status(404).json({ message: "User not found" });
 
-      const adminEmail = process.env.ADMIN_EMAIL;
-      if (adminEmail && secureCompare(targetUser.email, adminEmail)) {
+      const superAdminId = await getSuperAdminId(prisma);
+      if (superAdminId !== null && targetUser.id === superAdminId) {
         return res.status(403).json({ message: "Cannot change the role of the Superadmin" });
       }
 
@@ -295,8 +291,8 @@ router.delete(
       const targetUser = await prisma.user.findUnique({ where: { id } });
       if (!targetUser) return res.status(404).json({ message: "User not found" });
 
-      const adminEmail = process.env.ADMIN_EMAIL;
-      if (adminEmail && secureCompare(targetUser.email, adminEmail)) {
+      const superAdminId = await getSuperAdminId(prisma);
+      if (superAdminId !== null && targetUser.id === superAdminId) {
         return res.status(403).json({ message: "Cannot delete the Superadmin account" });
       }
 
