@@ -104,7 +104,7 @@ describe("index.html and jewellery.html", () => {
   });
   test("load section.js, catalogue.js and wishlist.js before store.js", () => {
     for (const html of [index, jewel]) {
-      for (const dep of ["catalogue.js", "wishlist.js"]) {
+      for (const dep of ["catalogue.js", "wishlist.js", "masonry.js"]) {
         expect(html.indexOf(`src="${dep}"`)).toBeGreaterThan(-1);
         expect(html.indexOf(`src="${dep}"`)).toBeLessThan(html.indexOf('src="store.js"'));
       }
