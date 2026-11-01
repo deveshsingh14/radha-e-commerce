@@ -325,3 +325,68 @@ describe('delivery areas at checkout', () => {
     expect(document.getElementById('pincodeHint').textContent).toBe('');
   });
 });
+
+describe('delivery-area dropdown', () => {
+  const co = require('./checkout');
+  const AREAS = [{ pincode: '480884', area: 'Area A', city: 'City A', state: 'State A' }, { pincode: '110001', area: null, city: 'New Delhi', state: 'Delhi' }];
+  function dom() {
+    for (const id of ['areaField', 'pincodeField']) document.getElementById(id)?.remove();
+    document.getElementById('pincode')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+      <div id="pincodeField"><input id="pincode"><small id="pincodeHint"></small></div>
+      <div id="areaField" hidden><select id="areaSelect"><option value="">Choose your delivery area</option></select>
+        <small id="areaHint"></small><small id="areaNote"></small></div>`);
+  }
+  beforeEach(() => { dom(); co._setCartEmpty(false); });
+  const opts = () => [...document.querySelectorAll('#areaSelect option')].map(o => o.textContent);
+
+  test('restricted: dropdown replaces the pincode box and lists every area', () => {
+    co._setDelivery({ enabled: true, areas: AREAS });
+    expect(co.setupAreaDropdown('')).toBe(true);
+    expect(document.getElementById('areaField').hidden).toBe(false);
+    expect(document.getElementById('pincodeField').hidden).toBe(true);
+    expect(opts()).toEqual(['Choose your delivery area', '480884 — Area A, City A, State A', '110001 — New Delhi, Delhi']);
+  });
+  test('nothing chosen yet: Place order disabled with a clear hint', () => {
+    co._setDelivery({ enabled: true, areas: AREAS }); co.setupAreaDropdown(''); co.applyPincode();
+    expect(document.getElementById('placeBtn').disabled).toBe(true);
+    expect(document.getElementById('areaHint').textContent).toBe('Choose your delivery area');
+  });
+  test('choosing an area fills pincode, city and state (locked)', () => {
+    co._setDelivery({ enabled: true, areas: AREAS }); co.setupAreaDropdown(''); co.applyPincode();
+    const sel = document.getElementById('areaSelect'); sel.value = '110001'; sel.dispatchEvent(new Event('change'));
+    expect(document.getElementById('pincode').value).toBe('110001');
+    expect(document.getElementById('city').value).toBe('New Delhi');
+    expect(document.getElementById('state').readOnly).toBe(true);
+    expect(document.getElementById('placeBtn').disabled).toBe(false);
+  });
+  test('saved pincode in the list is pre-selected', () => {
+    co._setDelivery({ enabled: true, areas: AREAS }); co.setupAreaDropdown('480884'); co.applyPincode();
+    expect(document.getElementById('areaSelect').value).toBe('480884');
+    expect(document.getElementById('city').value).toBe('City A');
+  });
+  test('saved pincode outside the list is explained, not silently used', () => {
+    co._setDelivery({ enabled: true, areas: AREAS }); co.setupAreaDropdown('380001'); co.applyPincode();
+    expect(document.getElementById('areaSelect').value).toBe('');
+    expect(document.getElementById('pincode').value).toBe('');
+    expect(document.getElementById('areaHint').textContent).toMatch(/saved pincode 380001 isn't in our delivery areas/);
+    expect(document.getElementById('placeBtn').disabled).toBe(true);
+  });
+  test('restricted with no areas: delivery unavailable', () => {
+    co._setDelivery({ enabled: true, areas: [] }); co.setupAreaDropdown(''); co.applyPincode();
+    expect(document.getElementById('areaSelect').disabled).toBe(true);
+    expect(document.getElementById('areaHint').textContent).toMatch(/isn't available right now/);
+  });
+  test('restriction off: normal pincode box, no dropdown', () => {
+    co._setDelivery({ enabled: false, areas: [] });
+    expect(co.setupAreaDropdown('380001')).toBe(false);
+    expect(document.getElementById('areaField').hidden).toBe(true);
+    expect(document.getElementById('pincodeField').hidden).toBe(false);
+  });
+  test('area names are text, never HTML', () => {
+    co._setDelivery({ enabled: true, areas: [{ pincode: '123456', area: '<img src=x onerror=alert(1)>', city: 'C', state: 'S' }] });
+    co.setupAreaDropdown('');
+    expect(document.querySelector('#areaSelect img')).toBeNull();
+    expect(opts()[1]).toContain('<img');
+  });
+});
