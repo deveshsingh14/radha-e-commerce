@@ -140,6 +140,8 @@ async function saveProfile() {
 
 loadOrders();
 loadProfile();
+// "My profile" in the account menu links to account.html#profile
+if (typeof window !== "undefined" && window.location && window.location.hash === "#profile") showTab("profile");
 
 async function changePassword() {
   const oldPassword = document.getElementById("cpOld").value;

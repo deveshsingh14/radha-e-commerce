@@ -843,14 +843,66 @@ function tokenRole() {
 }
 function updateAuthUI() {
   const authed = !!token();
-  const portal = document.getElementById("portalBtn");
-  if (portal) portal.style.display = authed && tokenRole() === "DELIVERY_PARTNER" ? "flex" : "none";
-  document.getElementById("loginBtn").style.display = authed ? "none" : "flex";
-  document.getElementById("logoutBtn").style.display = authed ? "flex" : "none";
-  const acct = document.getElementById("accountBtn");
-  if (acct) acct.style.display = authed ? "flex" : "none";
+  const login = document.getElementById("loginBtn");
+  if (login) login.style.display = authed ? "none" : "flex";
+  const wrap = document.getElementById("acctWrap");
+  if (wrap) wrap.style.display = authed ? "block" : "none";
+  const portal = document.getElementById("portalLink");
+  if (portal) portal.hidden = !(authed && tokenRole() === "DELIVERY_PARTNER");
+  if (!authed) closeAccountMenu();
 }
 
+// ---------- account menu (person icon) ----------
+function accountMenuEls() {
+  return { btn: document.getElementById("accountBtn"), menu: document.getElementById("accountMenu") };
+}
+function menuItems(menu) {
+  return [...menu.querySelectorAll('[role="menuitem"]')].filter(el => !el.closest("[hidden]") && !el.hidden);
+}
+function openAccountMenu() {
+  const { btn, menu } = accountMenuEls();
+  if (!btn || !menu) return;
+  menu.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  const first = menuItems(menu)[0];
+  if (first) first.focus();
+}
+function closeAccountMenu(returnFocus) {
+  const { btn, menu } = accountMenuEls();
+  if (!btn || !menu || menu.hidden) return;
+  menu.hidden = true;
+  btn.setAttribute("aria-expanded", "false");
+  if (returnFocus) btn.focus();
+}
+function initAccountMenu() {
+  const { btn, menu } = accountMenuEls();
+  if (!btn || !menu) return;
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    menu.hidden ? openAccountMenu() : closeAccountMenu();
+  });
+  document.getElementById("menuLogout").addEventListener("click", () => { closeAccountMenu(); logout(); });
+  const install = menu.querySelector(".menu-install");
+  if (install) install.addEventListener("click", () => {
+    closeAccountMenu();
+    const pwa = window.RadhaPWA;
+    if (!pwa) return;
+    if (pwa.state() === "ios") pwa.showIOSInstructions(); else pwa.promptInstall();
+  });
+  menu.addEventListener("click", e => { if (e.target.closest('a[role="menuitem"]')) closeAccountMenu(); });
+  document.addEventListener("click", e => { if (!menu.hidden && !e.target.closest("#acctWrap")) closeAccountMenu(); });
+  document.addEventListener("keydown", e => {
+    if (menu.hidden) return;
+    if (e.key === "Escape") { e.preventDefault(); closeAccountMenu(true); return; }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const items = menuItems(menu);
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === "ArrowDown" ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next].focus();
+    }
+  });
+}
 
 // Home-screen shortcut "Saved items" opens index.html?open=saved.
 // The wishlist API returns full product rows, so this doesn't need to
@@ -861,6 +913,7 @@ function handleLaunchParams() {
 }
 
 // ---------- boot ----------
+initAccountMenu();
 document.getElementById("searchInput").placeholder = SECTIONS[SECTION].searchPlaceholder;
 boot();
 handleLaunchParams();

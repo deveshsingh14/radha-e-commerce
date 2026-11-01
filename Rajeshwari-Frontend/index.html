@@ -61,9 +61,6 @@
     </div>
 
     <nav class="top-actions">
-      <a class="icon-btn" id="portalBtn" href="delivery.html" style="display:none;" title="Delivery portal">
-        <span class="ib-ico"><svg class="ico" aria-hidden="true"><use href="#i-truck"/></svg></span><span class="ib-label">Deliveries</span>
-      </a>
       <a class="icon-btn section-link" href="jewellery.html" title="Jewellery &amp; Bangles">
         <span class="ib-ico"><svg class="ico" aria-hidden="true"><use href="#i-jewel"/></svg></span><span class="ib-label">Jewellery</span>
       </a>
@@ -75,14 +72,23 @@
         <span class="ib-ico"><svg class="ico" aria-hidden="true"><use href="#i-cart"/></svg></span><span class="ib-label">Cart</span>
         <span class="count-dot" id="cartCount">0</span>
       </button>
-      <button class="icon-btn" id="accountBtn" onclick="window.location.href='account.html'" style="display:none;"
-        title="My account">
-        <span class="ib-ico"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg></span><span class="ib-label">Account</span>
-      </button>
+      <div class="acct-wrap" id="acctWrap" style="display:none;">
+        <button class="icon-btn" id="accountBtn" type="button" aria-haspopup="menu" aria-expanded="false"
+          aria-controls="accountMenu" title="My account" aria-label="My account">
+          <span class="ib-ico"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg></span><span class="ib-label">Account</span>
+        </button>
+        <div class="acct-menu" id="accountMenu" role="menu" aria-label="Account" hidden>
+          <a role="menuitem" href="account.html"><svg class="ico" aria-hidden="true"><use href="#i-box"/></svg><span>My orders</span></a>
+          <a role="menuitem" href="account.html#profile"><svg class="ico" aria-hidden="true"><use href="#i-user"/></svg><span>My profile</span></a>
+          <a role="menuitem" href="delivery.html" id="portalLink" hidden><svg class="ico" aria-hidden="true"><use href="#i-truck"/></svg><span>Deliveries</span></a>
+          <div data-pwa-install hidden>
+            <button role="menuitem" type="button" class="menu-install"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span>Install app</span></button>
+          </div>
+          <div class="menu-sep" role="separator"></div>
+          <button role="menuitem" type="button" class="menu-danger" id="menuLogout"><svg class="ico" aria-hidden="true"><use href="#i-logout"/></svg><span>Log out</span></button>
+        </div>
+      </div>
       <button class="icon-btn login-cta" id="loginBtn" onclick="openAuth()">Log in</button>
-      <button class="icon-btn" id="logoutBtn" onclick="logout()" style="display:none;">
-        <span class="ib-ico"><svg class="ico" aria-hidden="true"><use href="#i-logout"/></svg></span><span class="ib-label">Log out</span>
-      </button>
     </nav>
   </header>
 

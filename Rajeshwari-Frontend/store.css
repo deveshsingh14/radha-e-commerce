@@ -614,3 +614,23 @@ a.bn-item, a.icon-btn { text-decoration: none; }
 .empty-feed .big .ico, .drawer-empty .big .ico { width: 40px; height: 40px; stroke-width: 1.5; color: var(--muted); }
 /* links and buttons in the bottom bar must line up identically */
 .bn-item { font-family: inherit; line-height: 1.2; text-decoration: none; padding: 0; justify-content: flex-start; }
+
+/* ============ ACCOUNT MENU (person icon) ============ */
+.acct-wrap { position: relative; }
+.acct-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 120; min-width: 220px;
+  background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 6px;
+  box-shadow: var(--shadow-lift);
+}
+.acct-menu[hidden] { display: none; }
+.acct-menu [role="menuitem"] {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px;
+  border: none; background: none; border-radius: 10px; font: inherit; font-size: 14px;
+  font-weight: 600; color: var(--ink); text-decoration: none; text-align: left; cursor: pointer;
+}
+.acct-menu [role="menuitem"] .ico { width: 20px; height: 20px; color: var(--muted); }
+.acct-menu [role="menuitem"]:hover, .acct-menu [role="menuitem"]:focus-visible { background: var(--soft); outline: none; }
+.acct-menu .menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
+.acct-menu .menu-danger, .acct-menu .menu-danger .ico { color: #c0392b; }
+/* the item styles above set display:flex, which would override [hidden] */
+.acct-menu [hidden] { display: none !important; }
