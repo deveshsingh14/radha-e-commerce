@@ -91,6 +91,13 @@ describe("index.html and jewellery.html", () => {
   test("share identical element ids (store.js needs them all)", () => {
     expect(ids(jewel)).toEqual(ids(index));
   });
+  test("categories appear once: story circles only, no duplicate chip row", () => {
+    for (const html of [index, jewel]) {
+      expect(html).toMatch(/id="storiesRail"/);
+      expect(html).not.toMatch(/id="chipBar"|class="chips"/);
+      expect(html).toMatch(/id="sortSelect"/);
+    }
+  });
   test("declare their section", () => {
     expect(index).toMatch(/<body data-section="general">/);
     expect(jewel).toMatch(/<body data-section="jewellery">/);
