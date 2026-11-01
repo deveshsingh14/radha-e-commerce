@@ -569,3 +569,17 @@ a.bn-item, a.icon-btn { text-decoration: none; }
 
 .notify-panel[hidden] { display: none; }
 .success-notify { max-width: 520px; margin: 22px auto 0; text-align: left; }
+
+/* Shown when the API takes >4s (Render free plan waking up) */
+.wake-notice {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  margin: 0 auto 14px; max-width: 560px; padding: 10px 16px; border-radius: 999px;
+  background: #fff6e5; color: #8a5a00; font-size: 13px; font-weight: 600; text-align: center;
+}
+.wake-notice[hidden] { display: none; }
+.wake-dot {
+  flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: #c98a1e;
+  animation: wakePulse 1.2s ease-in-out infinite;
+}
+@keyframes wakePulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .wake-dot { animation: none; } }

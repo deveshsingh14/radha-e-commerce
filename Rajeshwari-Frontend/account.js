@@ -84,7 +84,7 @@ async function loadOrders() {
         <div class="oc-items">
           ${(o.orderItems || []).map(i => `
             <div class="sum-line">
-              <img src="${esc(imgSrc(itemImage(i)))}" alt="">
+              <img src="${esc(imgSrc(itemImage(i), IMG.thumb))}" alt="" loading="lazy">
               <div style="flex:1;min-width:0;">
                 <div class="sl-t">${esc(itemTitle(i))}</div>
                 <div class="sl-q">Qty ${i.quantity} × ${inr(i.price)}</div>

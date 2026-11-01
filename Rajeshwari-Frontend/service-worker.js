@@ -6,14 +6,16 @@
                                       the last good copy works offline)
      same-origin icons/images        -> cache-first
      legacy product images (/uploads)-> cache-first
-     API calls (/products, /cart…)   -> network-only, never cached
-                                      (prices, stock and carts must
-                                       always be live)
+     API calls (/products, /cart…)   -> network-only, never cached here
+                                      (carts, orders, prices at checkout
+                                       must always be live; the store page
+                                       keeps its own short-lived copy of the
+                                       public catalogue — see catalogue.js)
      other cross-origin (fonts, Cloudinary, Google) -> browser default
    Bump CACHE_VERSION whenever SHELL_ASSETS or this logic changes.
    ============================================================ */
 
-const CACHE_VERSION = "v4";
+const CACHE_VERSION = "v5";
 const SHELL_CACHE = `radha-shell-${CACHE_VERSION}`;
 const IMG_CACHE = `radha-img-${CACHE_VERSION}`;
 
@@ -26,6 +28,7 @@ const SHELL_ASSETS = [
   "store.css",
   "api.js",
   "section.js",
+  "catalogue.js",
   "notifications.js",
   "store.js",
   "checkout.js",

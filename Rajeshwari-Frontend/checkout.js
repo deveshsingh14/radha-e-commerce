@@ -54,7 +54,7 @@ async function loadSummary() {
       total += p.price * item.quantity;
       return `
         <div class="sum-line">
-          <img src="${esc(imgSrc(p.image))}" alt="">
+          <img src="${esc(imgSrc(p.image, IMG.thumb))}" alt="">
           <div style="flex:1;min-width:0;">
             <div class="sl-t">${esc(p.title)}</div>
             <div class="sl-q">Qty ${item.quantity}</div>
