@@ -65,7 +65,7 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 - **Cart** (shown to customers as "Cart"; the API keeps `/cart`): add, change quantity, remove; "Move to cart" from Saved.
 - **Navigation**:
   - **Bottom bar (phones):** Home, Jewellery, Search, Saved, Cart.
-  - **Top bar:** search, Saved, Cart, and a person icon that opens the **account menu** (My orders, My profile, Deliveries for partners, Install app when available, Log out). Logged out it shows "Log in". No hamburger menu (deliberate).
+  - **Top bar:** search, Saved, Cart, and a person icon that opens the **account menu** (My orders, My profile, Admin console for admins/owners, Deliveries for partners, Install app when available, Log out). Logged out it shows "Log in". No hamburger menu (deliberate).
   - **Icons:** all from one inline SVG icon set (no emoji), identical on every device.
 
 ### 4.5 Checkout & Orders
@@ -128,6 +128,7 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 - **Categories**: create, delete, Jewellery tick-box.
 - **Delivery areas**: restriction toggle; add, edit and remove pincodes with area/city/state.
 - **New-order alerts**: push opt-in button in the header.
+- **View store**: Admins and Owners can open the shop from admin (top bar and side menu) with the same login, browse it as customers see it, and return via **Admin console** in the shop's account menu (shown to ADMIN/OWNER only). Logging in still opens the admin console first. Owners have no Customers screen: customer data is Admin-only. Owners see customer name, phone and address only on orders, for delivery.
 
 ## 5. Non-Functional Requirements
 
@@ -258,6 +259,7 @@ The browser Sentry DSN (a public key by design) lives in `Rajeshwari-Frontend/mo
 | 1 Nov 2026 | Repo renamed to `radha-e-commerce`; `FRONTEND_URL`; password-reset link fixed. |
 | 1 Nov 2026 | Speed: resized images, catalogue cache, cold-start notice; duplicate category row removed; master-admin protection by id; Sentry on backend and browser with privacy scrubbing. |
 | 1 Nov 2026 | Instant, tap-safe save heart; save after login; one SVG icon set; "Bag" → "Cart"; account menu; sorted feed reads across rows; pincode area lock and delivery-area dropdown at checkout. |
+| 1 Nov 2026 | Admins/owners switch between admin and the shop with one login ("View store" / "Admin console"); Owners confirmed without access to customer data. |
 
 ---
 *This document is a living blueprint. Update §4–§9 and add a §10 entry with every change.*

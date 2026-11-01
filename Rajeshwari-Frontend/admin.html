@@ -49,6 +49,9 @@
     <button class="nav-item" data-view="customers"><span class="ico">☺</span> Customers</button>
     <button class="nav-item" data-view="deliveryAreas"><span class="ico">⌖</span> Delivery areas</button>
 
+    <div class="nav-label">Shop</div>
+    <a class="nav-item" href="index.html"><span class="ico">↗</span> View store</a>
+
     <div class="sidebar-foot">
       Signed in as admin<br>
       <button class="logout-link" onclick="adminLogout()">Sign out</button>
@@ -65,6 +68,7 @@
       </div>
       <div class="topbar-right">
         <button class="btn btn-sm menu-toggle" onclick="toggleSidebar()">☰ Menu</button>
+        <a class="btn btn-sm view-store" href="index.html" title="See the shop as customers see it">↗ View store</a>
         <div class="push-admin" data-push-panel data-push-hide="unsupported unavailable needs-login" hidden>
           <button class="btn btn-sm btn-gold" data-push-toggle
             data-push-on-label="🔔 New-order alerts" data-push-off-label="🔕 Alerts on · turn off">🔔 New-order alerts</button>
