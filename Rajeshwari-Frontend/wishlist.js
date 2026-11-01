@@ -107,4 +107,29 @@ function createWishlistSync(opts) {
     serverId: id => server.get(id), isSyncing: id => running.has(id) };
 }
 
-if (typeof module !== "undefined" && module.exports) module.exports = { createWishlistSync };
+// ---------- "save after login" ----------
+// A logged-out heart tap is remembered in THIS TAB only (sessionStorage):
+// one product id, nothing sent to the server. After login it's saved to the
+// account; closing the login window or 30 minutes passing discards it.
+const PENDING_SAVE_KEY = "radha.pendingSave";
+const PENDING_SAVE_MAX_AGE_MS = 30 * 60 * 1000;
+
+function rememberPendingSave(storage, productId, now = Date.now()) {
+  try { storage.setItem(PENDING_SAVE_KEY, JSON.stringify({ id: Number(productId), at: now })); return true; }
+  catch (e) { return false; }
+}
+function takePendingSave(storage, now = Date.now()) {
+  try {
+    const raw = storage.getItem(PENDING_SAVE_KEY);
+    storage.removeItem(PENDING_SAVE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (!v || !Number.isInteger(v.id) || v.id <= 0 || typeof v.at !== "number" || now - v.at > PENDING_SAVE_MAX_AGE_MS || v.at > now + 60000) return null;
+    return v.id;
+  } catch (e) { return null; }
+}
+function forgetPendingSave(storage) { try { storage.removeItem(PENDING_SAVE_KEY); } catch (e) { /* ignore */ } }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { createWishlistSync, rememberPendingSave, takePendingSave, forgetPendingSave, PENDING_SAVE_KEY };
+}

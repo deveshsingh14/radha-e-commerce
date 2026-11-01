@@ -521,7 +521,13 @@ function toggleSaveFromSheet(id) {
 // Instant: the heart flips now; wishlist.js syncs with the server and
 // collapses rapid repeat taps into at most two requests.
 function toggleWishlist(productId) {
-  if (!token()) { toast("Please login first"); openAuth(); return; }
+  if (!token()) {
+    // remembered in this tab only; saved to the account right after login
+    rememberPendingSave(sessionStorage, productId);
+    toast("Log in to save this — we'll keep it for you ♥");
+    openAuth();
+    return;
+  }
   const saved = WISH.toggle(productId);
   popHeart(productId);
   if (saved && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not supported */ } }
@@ -705,7 +711,10 @@ function openAuth() {
     googleAuthInitialized = true;
   }
 }
-function closeAuth() { document.getElementById("authModal").classList.remove("open"); }
+function closeAuth(keepPending) {
+  document.getElementById("authModal").classList.remove("open");
+  if (!keepPending) forgetPendingSave(sessionStorage); // dismissed without logging in
+}
 document.getElementById("authModal").addEventListener("click", function (e) {
   if (e.target === this) closeAuth();
 });
@@ -801,15 +810,23 @@ async function handleGoogleLogin(response) {
 }
 
 function finishLogin(jwt) {
+  const pendingSave = takePendingSave(sessionStorage); // heart tapped before logging in
   localStorage.setItem("token", jwt);
-  closeAuth();
+  closeAuth(true);
   toast("Welcome ✨");
   let payload = null;
   try { payload = JSON.parse(atob(jwt.split(".")[1])); } catch (e) { console.error("Error decoding JWT:", e); }
   if (payload && (payload.role === "ADMIN" || payload.role === "OWNER")) { window.location.href = "admin.html"; return; }
   if (payload && payload.role === "DELIVERY_PARTNER") { window.location.href = "delivery.html"; return; }
   updateAuthUI();
-  refreshWishlist().then(applyFilters);
+  refreshWishlist().then(() => {
+    applyFilters();
+    if (pendingSave && !WISH.isSaved(pendingSave)) {
+      WISH.set(pendingSave, true);
+      popHeart(pendingSave);
+      toast("Saved ♥ — find it under Saved");
+    }
+  });
   refreshCartCount();
 }
 async function logout() {
