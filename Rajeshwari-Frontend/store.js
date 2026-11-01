@@ -877,8 +877,13 @@ function updateAuthUI() {
   if (login) login.style.display = authed ? "none" : "flex";
   const wrap = document.getElementById("acctWrap");
   if (wrap) wrap.style.display = authed ? "block" : "none";
+  const role = authed ? tokenRole() : "";
   const portal = document.getElementById("portalLink");
-  if (portal) portal.hidden = !(authed && tokenRole() === "DELIVERY_PARTNER");
+  if (portal) portal.hidden = role !== "DELIVERY_PARTNER";
+  // Admins/owners can browse the shop like a customer and jump back to admin
+  // (link only; the admin console checks the real role itself).
+  const adminLink = document.getElementById("adminLink");
+  if (adminLink) adminLink.hidden = !(role === "ADMIN" || role === "OWNER");
   if (!authed) closeAccountMenu();
 }
 
