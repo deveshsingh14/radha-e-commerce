@@ -113,10 +113,23 @@ describe("index.html and jewellery.html", () => {
     }
   });
   test("bottom nav links the two pages, with the right item active", () => {
-    expect(index).toMatch(/<a class="bn-item" href="jewellery.html"><span>💍<\/span>Jewellery<\/a>/);
-    expect(index).toMatch(/bn-item active"[^>]*><span>⌂<\/span>Home/);
-    expect(jewel).toMatch(/<a class="bn-item" href="index.html"><span>⌂<\/span>Home<\/a>/);
-    expect(jewel).toMatch(/bn-item active"[^>]*><span>💍<\/span>Jewellery/);
+    const nav = html => html.slice(html.indexOf('<nav class="bottom-nav">'), html.indexOf("</nav>", html.indexOf('<nav class="bottom-nav">')));
+    expect(nav(index)).toMatch(/<a class="bn-item" href="jewellery.html">.*#i-jewel.*<span>Jewellery<\/span><\/a>/);
+    expect(nav(index)).toMatch(/bn-item active"[^>]*>.*#i-home.*<span>Home<\/span>/);
+    expect(nav(jewel)).toMatch(/<a class="bn-item" href="index.html">.*#i-home.*<span>Home<\/span><\/a>/);
+    expect(nav(jewel)).toMatch(/bn-item active"[^>]*>.*#i-jewel.*<span>Jewellery<\/span>/);
+  });
+  test("navigation uses the shared SVG icons (no emoji) and says Cart, not Bag", () => {
+    for (const html of [index, jewel]) {
+      const chrome = html.slice(html.indexOf("<header"), html.indexOf("</header>")) +
+        html.slice(html.indexOf('<nav class="bottom-nav">'), html.indexOf("<!-- ============ PRODUCT SHEET"));
+      expect(chrome).not.toMatch(/[\u{1F300}-\u{1FAFF}\u2302\u2315\u2665\u263A\u238B]/u);
+      for (const id of ["i-home", "i-search", "i-heart", "i-cart", "i-user", "i-jewel"]) {
+        expect(html).toMatch(new RegExp(`<symbol id="${id}"`));
+      }
+      expect(chrome).toMatch(/<span>Cart<\/span>/);
+      expect(chrome).not.toMatch(/>Bag</);
+    }
   });
   test("branding", () => {
     expect(index).toMatch(/<title>Radha E-Commerce<\/title>/);

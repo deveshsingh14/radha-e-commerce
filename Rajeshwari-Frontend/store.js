@@ -274,7 +274,7 @@ function createProductCard(p) {
           </button>
         </div>
         <div class="veil-bottom">
-          <button class="veil-round" title="Add to bag" onclick="quickAdd(event, ${p.id})">🛍</button>
+          <button class="veil-round" title="Add to cart" aria-label="Add to cart" onclick="quickAdd(event, ${p.id})"><svg class="ico" aria-hidden="true"><use href="#i-cart"/></svg></button>
           <button class="veil-round" title="Share" onclick="shareProduct(event, ${p.id})">↗</button>
         </div>
       </div>
@@ -299,7 +299,7 @@ function renderFeed(items) {
   if (!items.length) {
     m.innerHTML = `
       <div class="empty-feed" style="column-span:all">
-        <div class="big">${SECTION === "jewellery" ? "💍" : "⌕"}</div>
+        <div class="big"><svg class="ico" aria-hidden="true"><use href="#i-${SECTION === "jewellery" ? "jewel" : "search"}"/></svg></div>
         <h3>${esc(filtersActive() ? "Nothing here yet" : SECTIONS[SECTION].emptyTitle)}</h3>
         <p>${esc(filtersActive() ? "Try a different search or category." : SECTIONS[SECTION].emptyText)}</p>
         ${filtersActive()
@@ -441,7 +441,7 @@ function openSheet(id) {
       </div>
       <div class="sh-actions">
         <button class="btn-solid" ${p.stock <= 0 ? "disabled" : ""} onclick="addToCart(${p.id})">
-          ${p.stock <= 0 ? "Out of stock" : "Add to bag · " + inr(p.price)}
+          ${p.stock <= 0 ? "Out of stock" : "Add to cart · " + inr(p.price)}
         </button>
         <button type="button" class="btn-line heart-btn ${saved ? "saved" : ""}" id="sheetHeart" data-id="${p.id}"
           aria-pressed="${saved}" aria-label="${saved ? "Remove from saved" : "Save"}">${HEART_SVG}</button>
@@ -547,7 +547,7 @@ function closeWishlist() { document.getElementById("wishBack").classList.remove(
 function renderWishlistDrawer() {
   const box = document.getElementById("wishlistItems");
   if (!WISHLIST.length) {
-    box.innerHTML = `<div class="drawer-empty"><div class="big">♡</div>
+    box.innerHTML = `<div class="drawer-empty"><div class="big"><svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg></div>
       Nothing saved yet.<br>Double-tap any product to save it.</div>`;
     return;
   }
@@ -560,7 +560,7 @@ function renderWishlistDrawer() {
         <div class="li-title">${esc(p.title)}</div>
         <div class="li-price">${inr(p.price)}</div>
         <div class="li-controls">
-          <button class="li-move" onclick="moveToBag(${w.id}, ${p.id})">Move to bag</button>
+          <button class="li-move" onclick="moveToBag(${w.id}, ${p.id})">Move to cart</button>
           <button class="li-remove" onclick="toggleWishlist(${p.id})">Remove</button>
         </div>
       </div>
@@ -600,12 +600,12 @@ async function addToCart(productId, silent) {
     });
     if (handle401(res)) return;
     if (res.ok) {
-      if (!silent) toast("Added to bag 🛍");
+      if (!silent) toast("Added to cart");
       refreshCartCount();
     }
   } catch (e) {
     console.error("Error adding to cart:", e);
-    if (!silent) toast("Couldn't add to bag");
+    if (!silent) toast("Couldn't add to cart");
   }
 }
 function quickAdd(e, id) { e.stopPropagation(); addToCart(id); }
@@ -624,7 +624,7 @@ async function loadCartDrawer() {
     const items = await res.json();
     let total = 0;
     if (!items.length) {
-      box.innerHTML = `<div class="drawer-empty"><div class="big">🛍</div>Your bag is empty.</div>`;
+      box.innerHTML = `<div class="drawer-empty"><div class="big"><svg class="ico" aria-hidden="true"><use href="#i-cart"/></svg></div>Your cart is empty.</div>`;
       document.getElementById("cartTotal").textContent = inr(0);
       return;
     }
@@ -843,14 +843,66 @@ function tokenRole() {
 }
 function updateAuthUI() {
   const authed = !!token();
-  const portal = document.getElementById("portalBtn");
-  if (portal) portal.style.display = authed && tokenRole() === "DELIVERY_PARTNER" ? "flex" : "none";
-  document.getElementById("loginBtn").style.display = authed ? "none" : "flex";
-  document.getElementById("logoutBtn").style.display = authed ? "flex" : "none";
-  const acct = document.getElementById("accountBtn");
-  if (acct) acct.style.display = authed ? "flex" : "none";
+  const login = document.getElementById("loginBtn");
+  if (login) login.style.display = authed ? "none" : "flex";
+  const wrap = document.getElementById("acctWrap");
+  if (wrap) wrap.style.display = authed ? "block" : "none";
+  const portal = document.getElementById("portalLink");
+  if (portal) portal.hidden = !(authed && tokenRole() === "DELIVERY_PARTNER");
+  if (!authed) closeAccountMenu();
 }
 
+// ---------- account menu (person icon) ----------
+function accountMenuEls() {
+  return { btn: document.getElementById("accountBtn"), menu: document.getElementById("accountMenu") };
+}
+function menuItems(menu) {
+  return [...menu.querySelectorAll('[role="menuitem"]')].filter(el => !el.closest("[hidden]") && !el.hidden);
+}
+function openAccountMenu() {
+  const { btn, menu } = accountMenuEls();
+  if (!btn || !menu) return;
+  menu.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  const first = menuItems(menu)[0];
+  if (first) first.focus();
+}
+function closeAccountMenu(returnFocus) {
+  const { btn, menu } = accountMenuEls();
+  if (!btn || !menu || menu.hidden) return;
+  menu.hidden = true;
+  btn.setAttribute("aria-expanded", "false");
+  if (returnFocus) btn.focus();
+}
+function initAccountMenu() {
+  const { btn, menu } = accountMenuEls();
+  if (!btn || !menu) return;
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    menu.hidden ? openAccountMenu() : closeAccountMenu();
+  });
+  document.getElementById("menuLogout").addEventListener("click", () => { closeAccountMenu(); logout(); });
+  const install = menu.querySelector(".menu-install");
+  if (install) install.addEventListener("click", () => {
+    closeAccountMenu();
+    const pwa = window.RadhaPWA;
+    if (!pwa) return;
+    if (pwa.state() === "ios") pwa.showIOSInstructions(); else pwa.promptInstall();
+  });
+  menu.addEventListener("click", e => { if (e.target.closest('a[role="menuitem"]')) closeAccountMenu(); });
+  document.addEventListener("click", e => { if (!menu.hidden && !e.target.closest("#acctWrap")) closeAccountMenu(); });
+  document.addEventListener("keydown", e => {
+    if (menu.hidden) return;
+    if (e.key === "Escape") { e.preventDefault(); closeAccountMenu(true); return; }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const items = menuItems(menu);
+      const i = items.indexOf(document.activeElement);
+      const next = e.key === "ArrowDown" ? (i + 1) % items.length : (i - 1 + items.length) % items.length;
+      items[next].focus();
+    }
+  });
+}
 
 // Home-screen shortcut "Saved items" opens index.html?open=saved.
 // The wishlist API returns full product rows, so this doesn't need to
@@ -861,6 +913,7 @@ function handleLaunchParams() {
 }
 
 // ---------- boot ----------
+initAccountMenu();
 document.getElementById("searchInput").placeholder = SECTIONS[SECTION].searchPlaceholder;
 boot();
 handleLaunchParams();

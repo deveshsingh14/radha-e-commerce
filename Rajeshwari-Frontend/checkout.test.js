@@ -130,7 +130,7 @@ describe('checkout.js', () => {
 
       await loadSummary();
 
-      expect(document.getElementById("summaryItems").innerHTML).toContain("Your bag is empty");
+      expect(document.getElementById("summaryItems").innerHTML).toContain("Your cart is empty");
       expect(document.getElementById("placeBtn").disabled).toBe(true);
     });
 
