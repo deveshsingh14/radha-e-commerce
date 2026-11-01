@@ -546,15 +546,62 @@ async function deleteCategory(id) {
 // ============================================================
 //  DELIVERY AREAS (pincode restriction)
 // ============================================================
+function pincodeAreas() {
+  // newer backend returns areas[]; older only pincodes[]
+  return PINCODE_SETTING.areas || (PINCODE_SETTING.pincodes || []).map(p => ({ pincode: p, area: null, city: null, state: null }));
+}
 function renderDeliveryAreas() {
   document.getElementById("pincodeRestrictionToggle").checked = !!PINCODE_SETTING.enabled;
-  const pincodes = PINCODE_SETTING.pincodes || [];
-  document.getElementById("pincodeList").innerHTML = pincodes.length
-    ? pincodes.map(p => `
-      <span class="chip">${esc(p)}
-        <a href="#" onclick="removeServiceablePincode(${esc(JSON.stringify(p))}); return false;" style="color:inherit; margin-left:6px; text-decoration:none;" aria-label="Remove ${esc(p)}">×</a>
-      </span>`).join("")
-    : `<span class="cell-sub">No pincodes added yet.</span>`;
+  const rows = pincodeAreas();
+  const tbody = document.getElementById("pincodeList");
+  tbody.innerHTML = rows.length
+    ? rows.map(a => `
+      <tr data-pincode="${esc(a.pincode)}">
+        <td class="cell-strong">${esc(a.pincode)}</td>
+        <td>${esc(a.area || "—")}</td>
+        <td>${esc(a.city || "")}</td>
+        <td>${esc(a.state || "")}${a.city && a.state ? "" : ` <span class="badge b-warn" title="Checkout can't lock city/state for this pincode">Add city &amp; state</span>`}</td>
+        <td><div class="btn-row">
+          <button class="btn btn-sm" data-pin-action="edit">Edit</button>
+          <button class="btn btn-sm btn-danger" data-pin-action="remove">Remove</button>
+        </div></td>
+      </tr>`).join("")
+    : `<tr><td colspan="5" class="cell-sub">No pincodes added yet.</td></tr>`;
+  if (!tbody._pinBound) {
+    tbody._pinBound = true;
+    tbody.addEventListener("click", e => {
+      const b = e.target.closest("[data-pin-action]");
+      const row = b && b.closest("tr[data-pincode]");
+      if (!row) return;
+      const pin = row.dataset.pincode;
+      if (b.dataset.pinAction === "remove") removeServiceablePincode(pin);
+      if (b.dataset.pinAction === "edit") editPincodeRow(row, pincodeAreas().find(a => a.pincode === pin));
+      if (b.dataset.pinAction === "save") savePincodeRow(row, pin);
+      if (b.dataset.pinAction === "cancel") renderDeliveryAreas();
+    });
+  }
+}
+function editPincodeRow(row, a) {
+  const input = (name, v) => `<input type="text" data-field="${name}" value="${esc(v || "")}" maxlength="80" aria-label="${name}" style="width:100%;min-width:90px;">`;
+  row.innerHTML = `
+    <td class="cell-strong">${esc(a.pincode)}</td>
+    <td>${input("area", a.area)}</td><td>${input("city", a.city)}</td><td>${input("state", a.state)}</td>
+    <td><div class="btn-row">
+      <button class="btn btn-sm btn-primary" data-pin-action="save">Save</button>
+      <button class="btn btn-sm" data-pin-action="cancel">Cancel</button>
+    </div></td>`;
+  row.querySelector('[data-field="area"]').focus();
+}
+async function savePincodeRow(row, pincode) {
+  const v = f => row.querySelector(`[data-field="${f}"]`).value.trim();
+  try {
+    await api(`/pincode-restrictions/${encodeURIComponent(pincode)}`, {
+      method: "PUT", headers: authHeaders(true), body: JSON.stringify({ area: v("area"), city: v("city"), state: v("state") })
+    });
+    toast(`Pincode ${pincode} updated`);
+    PINCODE_SETTING = await api("/pincode-restrictions", { headers: authHeaders() });
+    renderDeliveryAreas();
+  } catch (e) { catchErr(e, "Couldn't update pincode"); }
 }
 async function togglePincodeRestriction(checked) {
   try {
@@ -571,9 +618,11 @@ async function togglePincodeRestriction(checked) {
 async function addServiceablePincode() {
   const pincode = val("newPincodeInput").trim();
   if (!/^\d{6}$/.test(pincode)) return toast("Enter a valid 6-digit pincode", "err");
+  const area = val("newPincodeArea").trim(), city = val("newPincodeCity").trim(), state = val("newPincodeState").trim();
+  if (!city || !state) toast("Tip: add city and state so checkout can lock them", "ok");
   try {
-    await api("/pincode-restrictions", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ pincode }) });
-    document.getElementById("newPincodeInput").value = "";
+    await api("/pincode-restrictions", { method: "POST", headers: authHeaders(true), body: JSON.stringify({ pincode, area, city, state }) });
+    ["newPincodeInput", "newPincodeArea", "newPincodeCity", "newPincodeState"].forEach(id => { document.getElementById(id).value = ""; });
     toast("Pincode added");
     const data = await api("/pincode-restrictions", { headers: authHeaders() });
     PINCODE_SETTING = data;
@@ -582,7 +631,7 @@ async function addServiceablePincode() {
 }
 async function removeServiceablePincode(pincode) {
   try {
-    await api(`/pincode-restrictions/${pincode}`, { method: "DELETE", headers: authHeaders() });
+    await api(`/pincode-restrictions/${encodeURIComponent(pincode)}`, { method: "DELETE", headers: authHeaders() });
     toast("Pincode removed");
     const data = await api("/pincode-restrictions", { headers: authHeaders() });
     PINCODE_SETTING = data;
@@ -1115,6 +1164,7 @@ if (typeof module !== "undefined") {
     renderCategories,
     renderCustomers,
     customerActions,
+    renderDeliveryAreas,
     _setState: (state) => {
       if (state.CATEGORIES) CATEGORIES = state.CATEGORIES;
       if (state.PRODUCTS) PRODUCTS = state.PRODUCTS;

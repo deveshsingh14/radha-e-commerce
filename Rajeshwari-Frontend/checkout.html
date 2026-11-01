@@ -42,10 +42,12 @@
     <div>
       <div class="co-card">
         <h3>Delivery details</h3>
+        <div class="area-notice" id="areaNotice" role="note" hidden></div>
         <div class="f-field"><span>Full name</span><input type="text" id="fullName"></div>
         <div class="f-row">
           <div class="f-field"><span>Phone</span><input type="tel" id="phone"></div>
-          <div class="f-field"><span>Pincode</span><input type="text" id="pincode"></div>
+          <div class="f-field"><span>Pincode</span><input type="text" id="pincode" inputmode="numeric" maxlength="6" autocomplete="postal-code" aria-describedby="pincodeHint">
+            <small class="f-hint" id="pincodeHint" aria-live="polite"></small></div>
         </div>
         <div class="f-field"><span>Full address</span><textarea id="address"></textarea></div>
         <div class="f-row">

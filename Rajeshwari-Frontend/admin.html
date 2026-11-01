@@ -305,11 +305,24 @@
           <input type="checkbox" id="pincodeRestrictionToggle" onchange="togglePincodeRestriction(this.checked)">
           Restrict checkout to the pincodes below
         </label>
-        <div class="btn-row" style="margin-top:16px;">
-          <input type="text" id="newPincodeInput" placeholder="6-digit pincode" maxlength="6" style="max-width:180px;">
+        <p class="cell-sub" style="margin:14px 0 8px;">Add each pincode with its area, city and state. At checkout the
+          customer's city and state are then filled in from the pincode and locked, so an address in another city
+          can't use an allowed pincode.</p>
+        <div class="pin-add">
+          <input type="text" id="newPincodeInput" placeholder="Pincode" maxlength="6" inputmode="numeric" aria-label="Pincode">
+          <input type="text" id="newPincodeArea" placeholder="Area / locality" maxlength="80" aria-label="Area">
+          <input type="text" id="newPincodeCity" placeholder="City" maxlength="80" aria-label="City">
+          <input type="text" id="newPincodeState" placeholder="State" maxlength="80" aria-label="State">
           <button class="btn btn-primary" onclick="addServiceablePincode()">＋ Add pincode</button>
         </div>
-        <div class="chip-row" id="pincodeList" style="margin-top:16px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+        <div class="card-table" style="margin-top:16px;">
+          <div class="table-wrap">
+            <table class="data" id="pincodeTable">
+              <thead><tr><th>Pincode</th><th>Area</th><th>City</th><th>State</th><th></th></tr></thead>
+              <tbody id="pincodeList"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
 

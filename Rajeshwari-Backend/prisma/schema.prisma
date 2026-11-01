@@ -162,6 +162,11 @@ model PincodeRestriction {
 model ServiceablePincode {
   id        Int      @id @default(autoincrement())
   pincode   String   @unique
+  // Where this pincode is. When set, checkout fills and locks city/state
+  // from here so an address can't claim a different city for the pincode.
+  area      String?
+  city      String?
+  state     String?
   createdAt DateTime @default(now())
 
   @@map("serviceable_pincode")

@@ -52,15 +52,23 @@ router.post("/checkout", authMiddleware, async (req, res) => {
 
     // Delivery-area restriction: browsing, cart and saving the address
     // above are never blocked — this only blocks placing the order.
+    // When the pincode's city/state are known, they are authoritative: an
+    // address can't claim a different city for an allowed pincode.
+    let deliverCity = city;
+    let deliverState = state;
     const restriction = await prisma.pincodeRestriction.findUnique({ where: { id: 1 } });
     if (restriction && restriction.enabled) {
       const serviceable = await prisma.serviceablePincode.findUnique({
-        where: { pincode: pincode.trim() }
+        where: { pincode: String(pincode).trim() }
       });
       if (!serviceable) {
         return res.status(403).json({
           message: "We don't deliver to this pincode yet. Your address has been saved — we'll notify you as we expand."
         });
+      }
+      if (serviceable.city && serviceable.state) {
+        deliverCity = serviceable.city;
+        deliverState = serviceable.state;
       }
     }
 
@@ -111,8 +119,8 @@ router.post("/checkout", authMiddleware, async (req, res) => {
           fullName,
           phone,
           address,
-          city,
-          state,
+          city: deliverCity,
+          state: deliverState,
           pincode,
           paymentMethod: method,
           paymentStatus: "Pending",
