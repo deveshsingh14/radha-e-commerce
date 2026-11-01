@@ -46,8 +46,16 @@
         <div class="f-field"><span>Full name</span><input type="text" id="fullName"></div>
         <div class="f-row">
           <div class="f-field"><span>Phone</span><input type="tel" id="phone"></div>
-          <div class="f-field"><span>Pincode</span><input type="text" id="pincode" inputmode="numeric" maxlength="6" autocomplete="postal-code" aria-describedby="pincodeHint">
+          <div class="f-field" id="pincodeField"><span>Pincode</span><input type="text" id="pincode" inputmode="numeric" maxlength="6" autocomplete="postal-code" aria-describedby="pincodeHint">
             <small class="f-hint" id="pincodeHint" aria-live="polite"></small></div>
+        </div>
+        <div class="f-field" id="areaField" hidden>
+          <span>Delivery area</span>
+          <select id="areaSelect" aria-describedby="areaHint areaNote">
+            <option value="">Choose your delivery area</option>
+          </select>
+          <small class="f-hint" id="areaHint" aria-live="polite"></small>
+          <small class="f-hint" id="areaNote">Area not listed? We don't deliver there yet.</small>
         </div>
         <div class="f-field"><span>Full address</span><textarea id="address"></textarea></div>
         <div class="f-row">

@@ -445,11 +445,11 @@ img { display: block; }
 @media (max-width: 520px) { .f-row { grid-template-columns: 1fr; } }
 .f-field { margin-bottom: 12px; }
 .f-field span { display: block; font-size: 11.5px; font-weight: 700; color: var(--muted); margin-bottom: 6px; letter-spacing: .3px; text-transform: uppercase; }
-.f-field input, .f-field textarea {
+.f-field input, .f-field textarea, .f-field select {
   width: 100%; border: 1.5px solid var(--line); border-radius: 13px;
   padding: 12px 14px; font-size: 14px; color: var(--ink); background: #fff;
 }
-.f-field input:focus, .f-field textarea:focus { outline: none; border-color: var(--gold); }
+.f-field input:focus, .f-field textarea:focus, .f-field select:focus { outline: none; border-color: var(--gold); }
 .f-field textarea { resize: vertical; min-height: 74px; }
 
 .pay-options { display: grid; gap: 10px; margin: 6px 0 4px; }
@@ -644,3 +644,10 @@ a.bn-item, a.icon-btn { text-decoration: none; }
 .f-hint.ok { color: #2f9e6f; font-weight: 600; }
 .f-hint.err { color: #c0392b; font-weight: 600; }
 input.locked { background: var(--soft); color: var(--ink); cursor: not-allowed; }
+
+/* Delivery-area dropdown (restricted delivery) */
+.f-field[hidden] { display: none; }
+.f-field select { appearance: none; -webkit-appearance: none; background-color: #fff; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
+.f-field select:disabled { background-color: var(--soft); cursor: not-allowed; }
