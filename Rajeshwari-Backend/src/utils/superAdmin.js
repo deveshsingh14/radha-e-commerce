@@ -3,7 +3,8 @@
 //
 // Resolved to ONE account id (never by comparing emails case-insensitively
 // at check time): registration doesn't normalise email case, so someone could
-// register "Devesh141Singh@..." — that look-alike must NOT become protected.
+// register the same address with different capitals — that look-alike must
+// NOT become protected.
 //   1. exact email match with role ADMIN, else
 //   2. the oldest ADMIN whose email matches ignoring case/surrounding spaces.
 const logger = require("../config/logger");

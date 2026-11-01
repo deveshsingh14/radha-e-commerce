@@ -12,6 +12,7 @@ process.env.JWT_SECRET = "category_routes_test_secret";
 const calls = [];
 const rows = new Map([[7, { id: 7, name: "Bangles", isJewellery: false }]]);
 const fakePrisma = {
+  user: { findUnique: async ({ where }) => ({ 1: { role: "ADMIN" }, 2: { role: "OWNER" }, 3: { role: "CUSTOMER" } })[where.id] || null },
   category: {
     findUnique: async ({ where }) => [...rows.values()].find(r => r.name === where.name) || null,
     findMany: async () => [...rows.values()],
@@ -31,7 +32,8 @@ require.cache[require.resolve("./src/config/db")] = {
 
 const categoryRoutes = require("./src/routes/categoryRoutes");
 
-const tokenFor = role => jwt.sign({ id: 1, role }, process.env.JWT_SECRET);
+const ROLE_IDS = { ADMIN: 1, OWNER: 2, CUSTOMER: 3 };
+const tokenFor = role => jwt.sign({ id: ROLE_IDS[role], role }, process.env.JWT_SECRET);
 let server, base;
 
 test.before(async () => {

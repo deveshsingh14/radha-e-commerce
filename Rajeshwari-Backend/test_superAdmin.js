@@ -14,9 +14,9 @@ function stub(modPath, exportsObj) {
 let users;
 function seed() {
   users = [
-    { id: 1, email: "devesh141singh@gmail.com", name: "Devesh", role: "ADMIN" },
+    { id: 1, email: "master.admin@example.test", name: "Master", role: "ADMIN" },
     { id: 2, email: "other.admin@x.test", name: "Other", role: "ADMIN" },
-    { id: 3, email: "Devesh141Singh@gmail.com", name: "Look-alike", role: "ADMIN" }, // registered later
+    { id: 3, email: "Master.Admin@example.test", name: "Look-alike", role: "ADMIN" }, // registered later
     { id: 4, email: "cust@x.test", name: "Cust", role: "CUSTOMER" }
   ];
 }
@@ -47,7 +47,7 @@ const call = async (method, url, body) => {
   return { status: res.status, body: await res.json().catch(() => null) };
 };
 
-for (const value of ["devesh141singh@gmail.com", "  devesh141singh@gmail.com  ", "DEVESH141SINGH@gmail.com"]) {
+for (const value of ["master.admin@example.test", "  master.admin@example.test  ", "MASTER.ADMIN@example.test"]) {
   test(`ADMIN_EMAIL=${JSON.stringify(value)}: master admin (id 1) can't be demoted or deleted`, async () => {
     seed(); process.env.ADMIN_EMAIL = value;
     assert.strictEqual((await call("PUT", "/1/role", { role: "CUSTOMER" })).status, 403);
@@ -57,13 +57,13 @@ for (const value of ["devesh141singh@gmail.com", "  devesh141singh@gmail.com  ",
 }
 
 test("a case-variant look-alike account is NOT protected", async () => {
-  seed(); process.env.ADMIN_EMAIL = "devesh141singh@gmail.com";
+  seed(); process.env.ADMIN_EMAIL = "master.admin@example.test";
   assert.strictEqual((await call("PUT", "/3/role", { role: "CUSTOMER" })).status, 200);
   assert.strictEqual((await call("DELETE", "/3")).status, 200);
 });
 
 test("GET /users flags exactly the master admin", async () => {
-  seed(); process.env.ADMIN_EMAIL = "devesh141singh@gmail.com";
+  seed(); process.env.ADMIN_EMAIL = "master.admin@example.test";
   const r = await call("GET", "/");
   assert.strictEqual(r.status, 200);
   assert.deepStrictEqual(r.body.filter(u => u.isSuperAdmin).map(u => u.id), [1]);

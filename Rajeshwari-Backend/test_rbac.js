@@ -23,10 +23,12 @@ async function runTests() {
       create: { name: 'Admin', email: 'admin_test@test.com', password: adminPass, role: 'ADMIN' }
     });
 
+    // The protected master admin is whoever ADMIN_EMAIL names (test DB only).
+    const superAdminEmail = process.env.ADMIN_EMAIL || 'superadmin_test@test.com';
     const superAdmin = await prisma.user.upsert({
-      where: { email: 'devesh141singh@gmail.com' },
+      where: { email: superAdminEmail },
       update: { role: 'ADMIN', password: adminPass },
-      create: { name: 'Super Admin', email: 'devesh141singh@gmail.com', password: adminPass, role: 'ADMIN' }
+      create: { name: 'Super Admin', email: superAdminEmail, password: adminPass, role: 'ADMIN' }
     });
 
     const owner = await prisma.user.upsert({

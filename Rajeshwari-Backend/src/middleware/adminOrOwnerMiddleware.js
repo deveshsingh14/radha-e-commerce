@@ -1,10 +1,5 @@
-function adminOrOwnerMiddleware(req, res, next) {
-  if (req.user.role !== "ADMIN" && req.user.role !== "OWNER") {
-    return res.status(403).json({
-      message: "Admin or Owner access only"
-    });
-  }
-  next();
-}
+// Admin or Owner routes (catalogue, orders, delivery areas).
+// Role is re-checked in the database on every request (see requireRole).
+const requireRole = require("./requireRole");
 
-module.exports = adminOrOwnerMiddleware;
+module.exports = requireRole(["ADMIN", "OWNER"], "Admin or Owner access only");

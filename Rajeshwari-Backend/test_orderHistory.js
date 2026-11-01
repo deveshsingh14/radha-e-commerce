@@ -19,7 +19,8 @@ const orders = new Map();
 let cart = [];
 let created = null;
 const tx = {
-  user: { findUnique: async ({ where }) => ({ email: `user${where.id}@x.test` }) },
+  // email for the checkout snapshot; role for the admin route checks
+  user: { findUnique: async ({ where }) => ({ email: `user${where.id}@x.test`, role: "ADMIN" }) },
   cart: { findMany: async () => cart, deleteMany: async () => { cart = []; } },
   product: {
     findMany: async ({ where }) => {
@@ -37,7 +38,7 @@ const tx = {
     update: async ({ where, data }) => { const o = orders.get(where.id); Object.assign(o, data); return { ...o }; }
   }
 };
-stub(path.join(__dirname, "src/config/db"), { ...tx, user: { update: () => Promise.resolve() },
+stub(path.join(__dirname, "src/config/db"), { ...tx, user: { ...tx.user, update: () => Promise.resolve() },
   pincodeRestriction: { findUnique: async () => null }, $transaction: async fn => fn(tx) });
 stub(path.join(__dirname, "src/utils/push"), { notifyUser: () => Promise.resolve(), notifyAdmins: () => Promise.resolve(),
   newOrderForShop: () => ({}), orderPlacedForCustomer: () => ({}), statusChangeForCustomer: () => null, NOTIFY_STATUSES: [] });

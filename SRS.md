@@ -34,7 +34,8 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 ### 4.1 Authentication & Authorization
 - Email/password registration and login, plus **Google Sign-In** (client id served by `GET /auth/google-client-id`).
 - **Password management**: change password when logged in; "Forgot password" emails a time-limited reset link to `…/radha-e-commerce/reset-password.html?token=…`, built from `FRONTEND_URL` (before 1 Nov 2026 the link pointed at the API host and did not work).
-- **Role-based access**: admin routes need `ADMIN`/`OWNER` (role changes and customer deletion need `ADMIN`). Delivery routes need `DELIVERY_PARTNER`/`ADMIN`/`OWNER`, and the role is **re-checked in the database** on every delivery request, so a demoted partner loses access immediately even with an unexpired token.
+- **Role-based access**: admin routes need `ADMIN`/`OWNER` (role changes and customer deletion need `ADMIN`). Delivery routes need `DELIVERY_PARTNER`/`ADMIN`/`OWNER`. For admin, owner and delivery routes the role is **re-checked in the database** on every request (`requireRole`, `deliveryMiddleware`). A token alone, whether outdated (demoted user) or forged, is not enough; the account must exist and currently hold the role.
+- **Signing secret**: `JWT_SECRET` must be a long random value set only in Render and local `.env`. It was rotated on 1 Nov 2026 after an old value was found in public git history; that value is now rejected.
 - **Rate limits**: login 10 per 15 minutes, registration 5 per hour, forgot/reset password 5 per 15 minutes.
 - **Logout** first unsubscribes the device from push notifications, so a shared device does not keep receiving the previous user's alerts. Then it clears the token.
 
@@ -260,6 +261,7 @@ The browser Sentry DSN (a public key by design) lives in `Rajeshwari-Frontend/mo
 | 1 Nov 2026 | Speed: resized images, catalogue cache, cold-start notice; duplicate category row removed; master-admin protection by id; Sentry on backend and browser with privacy scrubbing. |
 | 1 Nov 2026 | Instant, tap-safe save heart; save after login; one SVG icon set; "Bag" → "Cart"; account menu; sorted feed reads across rows; pincode area lock and delivery-area dropdown at checkout. |
 | 1 Nov 2026 | Admins/owners switch between admin and the shop with one login ("View store" / "Admin console"); Owners confirmed without access to customer data. |
+| 1 Nov 2026 | Security: `JWT_SECRET` rotated (old value was in public history); admin/owner routes re-check the role in the database; personal email removed from test files. |
 
 ---
 *This document is a living blueprint. Update §4–§9 and add a §10 entry with every change.*
