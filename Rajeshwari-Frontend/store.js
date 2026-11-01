@@ -86,7 +86,6 @@ async function boot() {
   }
   applyLaunchCategory();
   renderStories();
-  renderChips();
   applyFilters();
   refreshWishlist();
   refreshCartCount();
@@ -146,18 +145,6 @@ function renderStories() {
   rail.querySelectorAll(".story").forEach(btn =>
     btn.addEventListener("click", () => setCategory(btn.dataset.cat)));
 }
-function renderChips() {
-  const bar = document.getElementById("chipBar");
-  const chips = [{ name: "", label: "All" }].concat(
-    SECTION_CATEGORIES.map(c => ({ name: c.name, label: c.name }))
-  );
-  bar.innerHTML = chips.map(c => `
-    <button class="chip-btn ${activeCategory === c.name ? "active" : ""}" data-cat="${esc(c.name)}">
-      ${esc(c.label)}
-    </button>`).join("");
-  bar.querySelectorAll(".chip-btn").forEach(btn =>
-    btn.addEventListener("click", () => setCategory(btn.dataset.cat)));
-}
 // A category chip can point at the other section (e.g. a product tagged
 // both "Accessories" and "Bangles"): go to that page instead of showing
 // an empty feed here.
@@ -176,7 +163,6 @@ function applyLaunchCategory() {
 function setCategory(cat) {
   activeCategory = cat;
   renderStories();
-  renderChips();
   applyFilters();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -184,7 +170,7 @@ function resetFeed() {
   activeCategory = "";
   searchQuery = "";
   document.getElementById("searchInput").value = "";
-  renderStories(); renderChips(); applyFilters();
+  renderStories(); applyFilters();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 

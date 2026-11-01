@@ -25,7 +25,6 @@ document.body.innerHTML = `
   <div id="toast"></div>
   <div id="masonry"></div>
   <div id="storiesRail"></div>
-  <div id="chipBar"></div>
   <input id="searchInput" />
   <select id="sortSelect"><option value="newest"></option></select>
   <div id="feedEnd"></div>
