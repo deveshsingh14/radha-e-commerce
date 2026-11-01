@@ -28,6 +28,9 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
+// Error monitoring must start before express and the routes are loaded.
+const { Sentry, enabled: sentryEnabled } = require("./instrument");
+
 const express = require("express");
 const cors = require("cors");
 
@@ -116,6 +119,13 @@ app.get("/health", async (req, res) => {
 // (unawaited async errors, malformed JSON bodies, anything thrown by
 // middleware), not a replacement for the try/catch blocks in the
 // route files.
+// Sentry's Express handler reports 5xx errors that reach Express (4xx are
+// expected client mistakes), then hands over to our own errorHandler.
+if (sentryEnabled) {
+  Sentry.setupExpressErrorHandler(app, {
+    shouldHandleError: (err) => !err || !(Number(err.status || err.statusCode) < 500)
+  });
+}
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;

@@ -16,21 +16,20 @@ const logger = pino({
   }
 });
 
-// Sentry is optional — SENTRY_DSN isn't in the required-env-vars list
-// in index.js, so local dev without a DSN just skips error reporting
-// rather than failing to boot. Every route already funnels its caught
-// errors through logger.error(...), so wrapping it here reports to
-// Sentry everywhere that already happens, with no changes needed in
-// any route file.
-if (process.env.SENTRY_DSN) {
-  Sentry.init({ dsn: process.env.SENTRY_DSN });
-
-  const logError = logger.error.bind(logger);
-  logger.error = (...args) => {
-    const err = args.find((a) => a instanceof Error);
-    if (err) Sentry.captureException(err);
-    return logError(...args);
-  };
-}
+// Every route funnels caught errors through logger.error(...), so errors
+// logged here are also reported to Sentry (initialised in src/instrument.js;
+// no-op without SENTRY_DSN). Expected client errors (4xx) are skipped, and
+// Sentry's Dedupe integration drops an error already sent by Express's
+// handler. Accepts both logger.error(err, "msg") and logger.error("msg", err).
+const logError = logger.error.bind(logger);
+logger.error = (...args) => {
+  if (Sentry.getClient()) {
+    const err = args.find((a) => a instanceof Error) ||
+      (args[0] && args[0].err instanceof Error ? args[0].err : null);
+    const status = err && (err.status || err.statusCode);
+    if (err && !(typeof status === "number" && status < 500)) Sentry.captureException(err);
+  }
+  return logError(...args);
+};
 
 module.exports = logger;
