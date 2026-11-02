@@ -152,6 +152,7 @@
   });
 
   window.addEventListener("appinstalled", () => {
+    if (typeof window.TRACK === "function") window.TRACK("install");
     deferredPrompt = null;
     removeEl("pwaInstallCard");
     emit();

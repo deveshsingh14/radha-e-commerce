@@ -27,6 +27,34 @@ let cartEmpty = false;
 let areaMode = false;
 let areaMessage = "";
 
+function track(type, fields) { if (typeof window !== "undefined" && typeof window.TRACK === "function") window.TRACK(type, fields); }
+
+// "Area not listed? Tell us your pincode" — anonymous demand signal so the
+// shop can see where to start delivering next. Not tied to the account.
+function requestArea(pincode) {
+  const pin = String(pincode || "").trim();
+  if (!/^\d{6}$/.test(pin)) return { ok: false, message: "Enter a 6-digit pincode" };
+  if (findArea(DELIVERY.areas, pin)) return { ok: false, message: "We already deliver there — choose it above" };
+  track("area_request", { pincode: pin });
+  return { ok: true, message: "Thanks! We'll let the shop know." };
+}
+function setupAreaAsk() {
+  const btn = document.getElementById("areaAskBtn");
+  const box = document.getElementById("areaAsk");
+  const send = document.getElementById("areaAskSend");
+  if (!btn || !box || !send || send._bound) return;
+  send._bound = true;
+  btn.addEventListener("click", () => { box.hidden = false; document.getElementById("areaAskPin").focus(); });
+  send.addEventListener("click", () => {
+    const input = document.getElementById("areaAskPin");
+    const r = requestArea(input.value);
+    const hint = document.getElementById("areaAskHint");
+    hint.textContent = r.message;
+    hint.className = "f-hint " + (r.ok ? "ok" : "err");
+    if (r.ok) { input.value = ""; send.disabled = true; setTimeout(() => { send.disabled = false; }, 3000); }
+  });
+}
+
 function findArea(areas, pincode) {
   return (areas || []).find(a => a.pincode === String(pincode || "").trim()) || null;
 }
@@ -89,6 +117,7 @@ function setupAreaDropdown(savedPincode) {
       areaMessage = "";
       const p = document.getElementById("pincode");
       if (p) p.value = select.value;
+      if (select.value) track("area_select", { pincode: select.value });
       applyPincode();
     });
   }
@@ -140,6 +169,8 @@ async function loadDeliveryAreas() {
 }
 
 async function boot() {
+  track("checkout_start");
+  setupAreaAsk();
   const areasLoaded = loadDeliveryAreas();
   const pinInput = document.getElementById("pincode");
   if (pinInput) pinInput.addEventListener("input", applyPincode);
@@ -281,6 +312,7 @@ if (typeof module !== 'undefined') {
     _setDelivery: d => { DELIVERY = d; areaMode = false; areaMessage = ""; },
     setupAreaDropdown,
     areaOptionLabel,
+    requestArea,
     _setCartEmpty: v => { cartEmpty = v; }
   };
 }

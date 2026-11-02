@@ -43,6 +43,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const userRoutes = require("./routes/userRoutes");
 const pincodeRoutes = require("./routes/pincodeRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const analyticsRoutes = require("./routes/analyticsRoutes");
 const prisma = require("./config/db");
 const logger = require("./config/logger");
 const errorHandler = require("./middleware/errorHandler");
@@ -50,21 +51,16 @@ const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
 
+// Render (behind Cloudflare) forwards requests through a proxy; trust one
+// hop so req.ip is the visitor, not the proxy. Rate limits rely on it.
+app.set("trust proxy", 1);
+
 // CHANGED: cors() with no options reflected every origin. Restricted to
 // the actual deployed frontend + local dev server. `!origin` covers
 // non-browser clients (curl, server-to-server, mobile apps) that don't
 // send an Origin header at all — those were never something CORS could
 // protect against anyway.
-const ALLOWED_ORIGINS = [
-  "https://deveshsingh14.github.io"
-];
-
-if (process.env.NODE_ENV !== "production") {
-  ALLOWED_ORIGINS.push(
-    "http://localhost:5500",
-    "http://127.0.0.1:5500"
-  );
-}
+const { ALLOWED_ORIGINS } = require("./config/origins");
 
 app.use(cors({
   // CHANGED: reject with `false`, not an Error — an Error here reaches
@@ -88,6 +84,7 @@ app.use("/orders", orderRoutes);
 app.use("/users", userRoutes);
 app.use("/pincode-restrictions", pincodeRoutes);
 app.use("/notifications", notificationRoutes);
+app.use("/analytics", analyticsRoutes);
 
 
 app.get("/", (req, res) => {

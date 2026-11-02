@@ -131,6 +131,14 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 - **New-order alerts**: push opt-in button in the header.
 - **View store**: Admins and Owners can open the shop from admin (top bar and side menu) with the same login, browse it as customers see it, and return via **Admin console** in the shop's account menu (shown to ADMIN/OWNER only). Logging in still opens the admin console first. Owners have no Customers screen: customer data is Admin-only. Owners see customer name, phone and address only on orders, for delivery.
 
+### 4.10 Shop Analytics (anonymous) and 👁 view counter
+- **Tracker** (`analytics.js`): a random visitor ID in local storage (`radha.visitor`), no account link. Events are queued and sent in batches (every 5 s, and on page hide via `sendBeacon`, `text/plain`). **Do Not Track / Global Privacy Control turn it off** (no ID, no events). The privacy page is not tracked.
+- **Events:** `page_view`, `product_view` (sheet opened), `search` (1 s after typing stops, ≥2 characters, with result count), `category_select`, `save`, `add_to_cart`, `checkout_start`, `area_select`, `area_request`, `install`, `notify_on`.
+- **👁 counter:** unique visitors per product per day (Indian time), summed in `Product.viewCount`. Shown on cards and the product sheet from **10** (compact: 1.2k, 12k, 1.5M); admins see exact numbers (Products table "Views" column and CSV). Counter-only changes are patched in place (no feed re-render or scroll jump).
+- **Anti-inflation:** at most 3 new unique views per network (salted hash of the IP, in memory only) per product per day; bot user agents and other websites' origins are dropped; unknown product ids ignored.
+- **Checkout demand:** "Area not listed? … tell us your pincode" records an anonymous `area_request` (6-digit, not already served). Shown in Insights (Part 4).
+- **Privacy:** `privacy.html` (DPDP Act 2023 notice: what, why, retention, services, opt-out) linked from the footer of the store, jewellery, checkout and account pages.
+
 ## 5. Non-Functional Requirements
 
 ### 5.1 Security & Privacy
@@ -150,6 +158,8 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
   - `sendDefaultPii` is off.
   - Browser reporting runs only on the live site, from our own scripts.
   - The browser SDK is integrity-pinned (SRI).
+- **Analytics privacy:** no user id, email or IP stored with events; search terms lowercased, ≤80 characters; email-like and phone-like (7+ digits) searches dropped. Raw events kept 90 days, per-day view de-duplication rows 3 days (pruned at most once a day per server process).
+- **Real client IP:** `trust proxy` = 1 and `clientIp()` (CF-Connecting-IP → True-Client-IP → req.ip). All rate limiters key on it, so limits apply per visitor (before 2 Nov 2026 they were shared by everyone behind Render's proxy).
 - **Secrets:** never committed; `.env` is git-ignored. `render.yaml` and `.env.example` hold placeholders only.
 
 ### 5.2 Performance
@@ -184,6 +194,8 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 - **OrderItem**: `productId` **nullable** (ON DELETE SET NULL); `title`/`image` snapshot; quantity and price.
 - **PushSubscription**: one row per opted-in device; deleted with the user.
 - **PincodeRestriction** (single row, `enabled`); **ServiceablePincode** (`pincode`, `area`, `city`, `state`).
+- **Product.viewCount** (unique daily visitors, cumulative).
+- **AnalyticsEvent** (`type`, `visitorId`, optional `productId`, `categoryName`, `term`, `resultCount`, `pincode`, `page`; 90 days). **ProductView** (`productId`, `visitorId`, `day`; unique per day; 3 days). **ProductDailyStat** (`productId`, `day`, `views`, `saves`, `carts`; kept, no visitor ids).
 
 **Retention rule**: orders are business records. Deleting a product keeps its order lines (title/image/price snapshot). Deleting a customer keeps their orders, unlinked and labelled "Deleted account". Before 1 Nov 2026 both deletions cascaded; orders #1 and #8 lost a ₹299 line that way and it cannot be recovered.
 
@@ -197,6 +209,7 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 | Orders | `POST /orders/checkout`, `GET /orders` (customer); `GET /orders/admin/all`, `PUT /orders/:id/status`, `PUT /orders/:id/payment` (admin/owner); `GET /orders/delivery`, `PATCH /orders/:id/delivery-status` (delivery) |
 | Delivery areas | `GET /pincode-restrictions/areas` (public); admin: `GET /`, `PUT /toggle`, `POST /`, `PUT /:pincode`, `DELETE /:pincode` |
 | Notifications | `GET /notifications/vapid-public-key` (public); `POST`/`DELETE /notifications/subscribe` (auth) |
+| Analytics | `POST /analytics/events` (public; JSON or `text/plain`; ≤25 events; 120/min per visitor; always 204) |
 | Health | `GET /health` (checks the database) |
 
 ## 8. Operations
@@ -232,8 +245,8 @@ The browser Sentry DSN (a public key by design) lives in `Rajeshwari-Frontend/mo
 - Backend CI rebuilds an empty database from all migrations and fails on any drift from `schema.prisma`.
 
 ### 8.4 Testing
-- **Frontend:** `cd Rajeshwari-Frontend && npx jest` (199 tests at 1 Nov 2026).
-- **Backend:** `cd Rajeshwari-Backend && npm test` (database-free unit and HTTP tests, ~123).
+- **Frontend:** `cd Rajeshwari-Frontend && npx jest` (213 tests at 2 Nov 2026).
+- **Backend:** `cd Rajeshwari-Backend && npm test` (database-free unit and HTTP tests, 140 at 2 Nov 2026).
 - **Database tests:** `npm run test:db` runs **only** against a local/CI database. `scripts/testDbSafety.js` aborts if `DATABASE_URL` is not localhost (added after a 31 Oct 2026 incident in which a test deleted all live users; restored from Neon point-in-time restore).
 - **CI** (`.github/workflows/backend-ci.yml`): `npm ci`, `npm audit --audit-level=high`, unit tests; a separate `db-tests` job uses a throwaway Postgres container.
 - **Recommendation:** point local `.env` at a Neon dev branch instead of production.
@@ -262,6 +275,7 @@ The browser Sentry DSN (a public key by design) lives in `Rajeshwari-Frontend/mo
 | 1 Nov 2026 | Instant, tap-safe save heart; save after login; one SVG icon set; "Bag" → "Cart"; account menu; sorted feed reads across rows; pincode area lock and delivery-area dropdown at checkout. |
 | 1 Nov 2026 | Admins/owners switch between admin and the shop with one login ("View store" / "Admin console"); Owners confirmed without access to customer data. |
 | 1 Nov 2026 | Security: `JWT_SECRET` rotated (old value was in public history); admin/owner routes re-check the role in the database; personal email removed from test files. |
+| 2 Nov 2026 | Anonymous shop analytics, 👁 unique-visitor counter on products, privacy page and footer, "area not listed" pincode requests; rate limits now per visitor (real client IP behind the proxy). |
 
 ---
 *This document is a living blueprint. Update §4–§9 and add a §10 entry with every change.*

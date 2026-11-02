@@ -368,13 +368,14 @@ function renderProducts() {
         <td>${(p.categories || []).map(c => `<span class="chip">${esc(c.category.name)}</span>`).join("") || "<span class='cell-sub'>—</span>"}</td>
         <td class="num cell-strong">${inr(p.price)}</td>
         <td class="num">${p.stock}</td>
+        <td class="num">${Number(p.viewCount) || 0}</td>
         <td>${stockBadge(p.stock)}</td>
         <td><div class="btn-row">
           <button class="btn btn-sm" onclick="openEdit(${esc(JSON.stringify(p))})">Edit</button>
           <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})">Delete</button>
         </div></td>
       </tr>`).join("")
-    : emptyRow(6, "No products match these filters");
+    : emptyRow(7, "No products match these filters");
 }
 ["productSearch", "productCategoryFilter", "productStockFilter"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderProducts));
@@ -473,8 +474,8 @@ async function updateProduct() {
   } catch (e) { catchErr(e, "Couldn't update"); }
 }
 function exportProductsCSV() {
-  const rows = [["ID", "Title", "Price", "Stock", "Categories", "Keywords"]];
-  filteredProducts().forEach(p => rows.push([p.id, p.title, p.price, p.stock,
+  const rows = [["ID", "Title", "Price", "Stock", "Views", "Categories", "Keywords"]];
+  filteredProducts().forEach(p => rows.push([p.id, p.title, p.price, p.stock, Number(p.viewCount) || 0,
     (p.categories || []).map(c => c.category.name).join(" | "), p.keywords || ""]));
   downloadCSV("products.csv", rows);
 }

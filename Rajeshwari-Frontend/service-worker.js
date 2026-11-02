@@ -15,7 +15,7 @@
    Bump CACHE_VERSION whenever SHELL_ASSETS or this logic changes.
    ============================================================ */
 
-const CACHE_VERSION = "v8";
+const CACHE_VERSION = "v9";
 const SHELL_CACHE = `radha-shell-${CACHE_VERSION}`;
 const IMG_CACHE = `radha-img-${CACHE_VERSION}`;
 
@@ -25,8 +25,10 @@ const SHELL_ASSETS = [
   "checkout.html",
   "account.html",
   "offline.html",
+  "privacy.html",
   "store.css",
   "api.js",
+  "analytics.js",
   "section.js",
   "catalogue.js",
   "wishlist.js",
@@ -46,7 +48,7 @@ const SHELL_ASSETS = [
 
 const API_PATHS = [
   "/products", "/categories", "/cart", "/wishlist", "/orders", "/users",
-  "/auth", "/notifications", "/pincode-restrictions", "/health"
+  "/auth", "/notifications", "/pincode-restrictions", "/analytics", "/health"
 ];
 
 // ---------- install ----------

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy — Radha E-Commerce</title>
+<meta name="description" content="What Radha E-Commerce collects, why, and for how long.">
+<link rel="icon" href="icons/favicon-64.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #211a20; --body: #3d353c; --muted: #8f8691; --line: #eee9ec; --maroon: #7a1f3d; --soft: #faf7f9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fff; color: var(--body); font-family: "DM Sans", system-ui, sans-serif; line-height: 1.65; font-size: 15px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 16px 60px; }
+  .back { color: var(--maroon); font-weight: 700; text-decoration: none; font-size: 14px; }
+  h1 { font-family: "Cinzel", serif; color: var(--ink); font-size: 26px; margin: 18px 0 4px; }
+  .updated { color: var(--muted); font-size: 13px; margin: 0 0 24px; }
+  h2 { color: var(--ink); font-size: 17px; margin: 28px 0 8px; }
+  ul { padding-left: 20px; margin: 8px 0; }
+  li { margin: 4px 0; }
+  .box { background: var(--soft); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink); }
+  code { background: var(--soft); padding: 1px 5px; border-radius: 5px; font-size: 13px; }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <a class="back" href="index.html">← Back to the shop</a>
+  <h1>Your privacy</h1>
+  <p class="updated">Last updated: 2 November 2026</p>
+
+  <div class="box">
+    <strong>In short:</strong> we keep what we need to deliver your orders, and we count visits,
+    searches and popular products <strong>anonymously</strong> to improve the shop.
+    No advertising trackers, no third-party analytics, and we never sell your data.
+  </div>
+
+  <h2>1. Your account and orders</h2>
+  <p>When you register or order we store your name, email, phone number and delivery address,
+    your cart, saved items and order history. We use these only to run your account, deliver
+    your orders and send you order updates. Passwords are stored hashed, never in plain text.</p>
+
+  <h2>2. Anonymous shop statistics</h2>
+  <p>To learn which products people like and what they look for, the shop records:</p>
+  <ul>
+    <li>pages opened, products viewed, saved and added to the cart;</li>
+    <li>search words (anything that looks like an email address or phone number is thrown away)
+      and the category you chose;</li>
+    <li>the delivery pincode you pick at checkout, or a pincode you tell us when your area isn't
+      listed yet;</li>
+    <li>when the app is installed or notifications are turned on.</li>
+  </ul>
+  <p>These records carry a random <strong>visitor ID</strong> kept in your browser
+    (<code>radha.visitor</code> in local storage). It is an identifier, but it is not linked to
+    your name, email, account or IP address. Clearing your browser data gives you a new one.</p>
+  <p>The <strong>👁 number</strong> on a product is how many different visitors opened it
+    (each visitor counts at most once a day). It is shown once a product reaches 10 and is
+    approximate.</p>
+  <p><strong>Opting out:</strong> if your browser sends <em>Do Not Track</em> or
+    <em>Global Privacy Control</em>, none of these statistics are recorded — the shop works the
+    same. (That also means the numbers slightly undercount.)</p>
+
+  <h2>3. How long we keep it</h2>
+  <table>
+    <tr><th>What</th><th>Kept for</th></tr>
+    <tr><td>Anonymous shop events</td><td>90 days, then deleted</td></tr>
+    <tr><td>"Who viewed what today" (to count each visitor once a day)</td><td>3 days, then deleted</td></tr>
+    <tr><td>Daily totals per product (views, saves, carts — no visitor IDs)</td><td>Kept</td></tr>
+    <tr><td>Account and orders</td><td>While your account exists; order records are kept for accounting after an account is deleted</td></tr>
+  </table>
+
+  <h2>4. Services we use</h2>
+  <ul>
+    <li><strong>Hosting</strong> (GitHub Pages for the website, Render for the server, Neon for the
+      database, Cloudflare): their systems process your requests and may keep standard technical
+      logs such as IP addresses for security.</li>
+    <li><strong>Sentry</strong> (error reports): if a page or the server breaks, technical details of
+      the error are sent so we can fix it. No account details are attached, and reset links and
+      login tokens are removed first.</li>
+    <li><strong>Cloudinary</strong> (product photos), <strong>Google Sign-In</strong> (only if you
+      choose it) and your browser's push service (only if you turn on notifications).</li>
+  </ul>
+
+  <h2>5. Stored on your device</h2>
+  <p>We don't use advertising cookies. The site keeps your login, the visitor ID, a copy of the
+    catalogue for fast loading and a few display preferences in your browser's local storage.</p>
+
+  <h2>6. Your rights</h2>
+  <p>Under India's Digital Personal Data Protection Act, 2023 you can ask to see, correct or delete
+    your personal data, and withdraw consent. You can edit your details on the
+    <a class="back" href="account.html">Account</a> page. For anything else, reply to any order
+    email from us and we'll help.</p>
+</main>
+</body>
+</html>

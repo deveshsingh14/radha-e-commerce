@@ -390,3 +390,17 @@ describe('delivery-area dropdown', () => {
     expect(opts()[1]).toContain('<img');
   });
 });
+
+describe("area not listed? tell us your pincode", () => {
+  test("validates, skips areas already served, and records the request", () => {
+    const mod = require("./checkout");
+    mod._setDelivery({ enabled: true, areas: [{ pincode: "560001" }] });
+    window.TRACK = jest.fn();
+    expect(mod.requestArea("12").ok).toBe(false);
+    expect(mod.requestArea("560001").ok).toBe(false);
+    expect(window.TRACK).not.toHaveBeenCalled();
+    expect(mod.requestArea(" 560099 ").ok).toBe(true);
+    expect(window.TRACK).toHaveBeenCalledWith("area_request", { pincode: "560099" });
+    delete window.TRACK;
+  });
+});
