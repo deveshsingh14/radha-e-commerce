@@ -139,6 +139,15 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 - **Checkout demand:** "Area not listed? … tell us your pincode" records an anonymous `area_request` (6-digit, not already served). Shown in Insights (Part 4).
 - **Privacy:** `privacy.html` (DPDP Act 2023 notice: what, why, retention, services, opt-out) linked from the footer of the store, jewellery, checkout and account pages.
 
+### 4.11 Pricing, product details and custom fields
+- **Three prices:** *Selling price* (required, what the customer pays), *MRP* (optional, printed maximum retail price) and *Cost price* (optional, what the shop paid; **ADMIN/OWNER only**).
+- **Rules:** selling price must not exceed MRP (Legal Metrology); enforced by the API on create, edit (using the stored value for the side not sent) and CSV upload, and live in the admin form. Cost price ≥ 0.
+- **Loss guard (admin form):** live summary under the price boxes — customer view ("₹499 ~~₹599~~ · 16% off"), profit per sale and margin %. Saving **asks for confirmation** when the price is below cost ("You will LOSE ₹50 on every sale") or the margin is under 10%. Nothing changes prices automatically.
+- **Storefront:** cards and the product sheet show the price, the MRP struck through and "% off" (rounded down) only when MRP is higher. The sheet shows a **Details** table (brand, size, colour, material, then extra fields), all escaped. Search also matches brand, colour, material, size and tags.
+- **Details:** brand, SKU / item code (unique), size, colour, material, tags (comma-separated in the form, `;` in CSV).
+- **Custom fields:** each category can have a **template** of field names (Categories → *Fields*, e.g. "Purity, Weight"); ticking the category in the product form adds those fields. Any product can also have one-off extra fields ("+ Add custom field"). Blank values are skipped.
+- **Admin:** Products table shows MRP, % off and profit/margin (loss in red); CSV export adds MRP, cost, profit, margin, SKU, brand. CSV upload template adds `mrp, cost_price, brand, sku, size, color, material, tags`; every row is validated with the same rules and bad rows are reported by row number.
+
 ## 5. Non-Functional Requirements
 
 ### 5.1 Security & Privacy
@@ -158,6 +167,7 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
   - `sendDefaultPii` is off.
   - Browser reporting runs only on the live site, from our own scripts.
   - The browser SDK is integrity-pinned (SRI).
+- **Cost price is never public:** the Prisma client omits `Product.costPrice` from every query by default (including products nested in cart, wishlist and orders); only `GET /products/admin` and admin create/update responses opt back in. Verified against a real database for `/products`, `/products/:id`, `/cart`, `/wishlist`, `/orders` and checkout.
 - **Analytics privacy:** no user id, email or IP stored with events; search terms lowercased, ≤80 characters; email-like and phone-like (7+ digits) searches dropped. Raw events kept 90 days, per-day view de-duplication rows 3 days (pruned at most once a day per server process).
 - **Real client IP:** `trust proxy` = 1 and `clientIp()` (CF-Connecting-IP → True-Client-IP → req.ip). All rate limiters key on it, so limits apply per visitor (before 2 Nov 2026 they were shared by everyone behind Render's proxy).
 - **Secrets:** never committed; `.env` is git-ignored. `render.yaml` and `.env.example` hold placeholders only.
@@ -195,6 +205,7 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 - **PushSubscription**: one row per opted-in device; deleted with the user.
 - **PincodeRestriction** (single row, `enabled`); **ServiceablePincode** (`pincode`, `area`, `city`, `state`).
 - **Product.viewCount** (unique daily visitors, cumulative).
+- **Product pricing/details:** `mrp`, `costPrice` (admin-only), `brand`, `sku` (unique), `size`, `color`, `material`, `tags` (text list), `attributes` (JSON `[{label, value}]`). **Category.fieldTemplate** (JSON list of field names).
 - **AnalyticsEvent** (`type`, `visitorId`, optional `productId`, `categoryName`, `term`, `resultCount`, `pincode`, `page`; 90 days). **ProductView** (`productId`, `visitorId`, `day`; unique per day; 3 days). **ProductDailyStat** (`productId`, `day`, `views`, `saves`, `carts`; kept, no visitor ids).
 
 **Retention rule**: orders are business records. Deleting a product keeps its order lines (title/image/price snapshot). Deleting a customer keeps their orders, unlinked and labelled "Deleted account". Before 1 Nov 2026 both deletions cascaded; orders #1 and #8 lost a ₹299 line that way and it cannot be recovered.
@@ -204,7 +215,7 @@ Frontend modules (all in `Rajeshwari-Frontend/`): `api.js` (shared helpers, imag
 |---|---|
 | Auth | `POST /auth/register`, `/login`, `/google`, `/forgot-password`, `/reset-password/:token`, `/change-password` (auth); `GET /auth/google-client-id` |
 | Users | `GET/PUT /users/me`; admin: `GET /users`, `PUT /users/:id/role`, `DELETE /users/:id`, `GET /users/:id/orders`, owner-promotion settings |
-| Products / Categories | `GET /products`, `GET /products/:id`; admin: create/update/delete/upload/bulk-upload. `GET /categories`; admin: `POST`, `PATCH /categories/:id {isJewellery}`, `DELETE` |
+| Products / Categories | `GET /products`, `GET /products/:id`; admin: `GET /products/admin` (with cost price), create/update/delete/upload/bulk-upload. `GET /categories`; admin: `POST`, `PATCH /categories/:id {isJewellery?, fieldTemplate?}`, `DELETE` |
 | Cart / Wishlist | `/cart`, `/wishlist` (auth) |
 | Orders | `POST /orders/checkout`, `GET /orders` (customer); `GET /orders/admin/all`, `PUT /orders/:id/status`, `PUT /orders/:id/payment` (admin/owner); `GET /orders/delivery`, `PATCH /orders/:id/delivery-status` (delivery) |
 | Delivery areas | `GET /pincode-restrictions/areas` (public); admin: `GET /`, `PUT /toggle`, `POST /`, `PUT /:pincode`, `DELETE /:pincode` |
@@ -245,8 +256,8 @@ The browser Sentry DSN (a public key by design) lives in `Rajeshwari-Frontend/mo
 - Backend CI rebuilds an empty database from all migrations and fails on any drift from `schema.prisma`.
 
 ### 8.4 Testing
-- **Frontend:** `cd Rajeshwari-Frontend && npx jest` (213 tests at 2 Nov 2026).
-- **Backend:** `cd Rajeshwari-Backend && npm test` (database-free unit and HTTP tests, 140 at 2 Nov 2026).
+- **Frontend:** `cd Rajeshwari-Frontend && npx jest` (219 tests at 2 Nov 2026).
+- **Backend:** `cd Rajeshwari-Backend && npm test` (database-free unit and HTTP tests, 151 at 2 Nov 2026).
 - **Database tests:** `npm run test:db` runs **only** against a local/CI database. `scripts/testDbSafety.js` aborts if `DATABASE_URL` is not localhost (added after a 31 Oct 2026 incident in which a test deleted all live users; restored from Neon point-in-time restore).
 - **CI** (`.github/workflows/backend-ci.yml`): `npm ci`, `npm audit --audit-level=high`, unit tests; a separate `db-tests` job uses a throwaway Postgres container.
 - **Recommendation:** point local `.env` at a Neon dev branch instead of production.
@@ -276,6 +287,7 @@ The browser Sentry DSN (a public key by design) lives in `Rajeshwari-Frontend/mo
 | 1 Nov 2026 | Admins/owners switch between admin and the shop with one login ("View store" / "Admin console"); Owners confirmed without access to customer data. |
 | 1 Nov 2026 | Security: `JWT_SECRET` rotated (old value was in public history); admin/owner routes re-check the role in the database; personal email removed from test files. |
 | 2 Nov 2026 | Anonymous shop analytics, 👁 unique-visitor counter on products, privacy page and footer, "area not listed" pincode requests; rate limits now per visitor (real client IP behind the proxy). |
+| 2 Nov 2026 | MRP / selling / cost price with MRP rule and loss/thin-margin confirmation; struck-through MRP and "% off" on the store; product details (brand, SKU, size, colour, material, tags) and per-category custom fields; cost price hidden from all public responses; CSV upload validated per row. |
 
 ---
 *This document is a living blueprint. Update §4–§9 and add a §10 entry with every change.*

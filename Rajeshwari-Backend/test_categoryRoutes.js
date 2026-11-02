@@ -106,3 +106,15 @@ test("GET /categories returns the isJewellery flag", async () => {
   assert.strictEqual(r.status, 200);
   assert.ok(r.body.every(c => typeof c.isJewellery === "boolean"));
 });
+
+test("PATCH saves a field template (trimmed, de-duplicated) and validates it", async () => {
+  let r = await call("PATCH", "/7", { role: "ADMIN", body: { fieldTemplate: [" Purity ", "purity", "Weight", ""] } });
+  assert.strictEqual(r.status, 200);
+  assert.deepStrictEqual(calls.at(-1), ["update", { id: 7 }, { fieldTemplate: ["Purity", "Weight"] }]);
+  r = await call("PATCH", "/7", { role: "ADMIN", body: { fieldTemplate: null } });
+  assert.deepStrictEqual(calls.at(-1)[2], { fieldTemplate: [] });
+  for (const fieldTemplate of ["Purity", [{ a: 1 }], Array.from({ length: 21 }, (_, i) => `F${i}`), ["x".repeat(41)]]) {
+    assert.strictEqual((await call("PATCH", "/7", { role: "ADMIN", body: { fieldTemplate } })).status, 400);
+  }
+  assert.strictEqual((await call("PATCH", "/7", { role: "CUSTOMER", body: { fieldTemplate: ["X"] } })).status, 403);
+});

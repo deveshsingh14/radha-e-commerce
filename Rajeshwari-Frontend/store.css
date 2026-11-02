@@ -671,3 +671,20 @@ input.locked { background: var(--soft); color: var(--ink); cursor: not-allowed; 
 
 .privacy-foot { text-align: center; color: var(--muted); font-size: 12px; line-height: 1.5; margin: 18px auto 8px; padding: 0 16px; max-width: 560px; }
 .privacy-foot a { color: var(--maroon); font-weight: 700; }
+
+/* MRP struck through + discount */
+.pin-prices, .sh-prices { display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: 5px; min-width: 0; }
+.pin-prices .mrp { font-size: 11.5px; color: var(--muted); }
+.pin-prices .off { font-size: 11px; font-weight: 700; color: #2f9e6f; }
+.sh-prices .mrp { font-size: 15px; color: var(--muted); }
+.sh-prices .off { font-size: 13px; font-weight: 700; color: #2f9e6f; }
+.pin-row { gap: 6px; }
+.sh-price-row { flex-wrap: wrap; row-gap: 4px; }
+/* product details table */
+.sh-details { width: 100%; border-collapse: collapse; margin: 14px 0 6px; font-size: 13.5px; }
+.sh-details caption { text-align: left; font-weight: 700; color: var(--ink); font-size: 14px; padding-bottom: 6px; }
+.sh-details th { text-align: left; color: var(--muted); font-weight: 600; padding: 6px 12px 6px 0; width: 38%; vertical-align: top; border-top: 1px solid var(--line); }
+.sh-details td { color: var(--body); padding: 6px 0; border-top: 1px solid var(--line); overflow-wrap: anywhere; }
+.pin-right { flex: 0 1 auto; min-width: 0; }
+.pin-right .pin-cat { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pin-prices { flex: 0 1 auto; }

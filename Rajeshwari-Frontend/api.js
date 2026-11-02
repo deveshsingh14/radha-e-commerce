@@ -99,6 +99,25 @@ async function beforeLogout() {
   } catch (e) { /* ignore */ }
 }
 
+// ---- pricing (shared by the store and admin) ----
+// Whole-number "% off" against the printed MRP; 0 when there is no discount.
+function discountPercent(price, mrp) {
+  price = Number(price); mrp = Number(mrp);
+  if (!(price > 0) || !(mrp > price)) return 0;
+  return Math.floor(((mrp - price) / mrp) * 100);
+}
+// Profit and margin on the selling price; null when cost is unknown.
+// level: "loss" (price below cost), "thin" (< 10% margin), "ok".
+function marginInfo(price, cost) {
+  price = Number(price);
+  if (cost === null || cost === undefined || cost === "" || !(price > 0)) return null;
+  cost = Number(cost);
+  if (!(cost >= 0)) return null;
+  const profit = Math.round((price - cost) * 100) / 100;
+  const margin = Math.round((profit / price) * 1000) / 10;
+  return { profit, margin, level: profit < 0 ? "loss" : margin < 10 ? "thin" : "ok" };
+}
+
 function catchErr(e, msg, el = null) {
   console.error("Error:", e);
   if (el) el.textContent = msg;
@@ -109,6 +128,8 @@ if (typeof module !== "undefined") {
   module.exports = {
     API_URL,
     inr,
+    discountPercent,
+    marginInfo,
     esc,
     imgSrc,
     IMG,

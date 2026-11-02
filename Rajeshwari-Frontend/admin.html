@@ -178,8 +178,8 @@
         <div class="form-grid">
           <label class="field full"><span>Title</span><input type="text" id="productTitle" placeholder="e.g. Kundan Bridal Chooda Set"></label>
           <label class="field full"><span>Description</span><textarea id="productDescription" placeholder="Short product description"></textarea></label>
-          <label class="field"><span>Price (₹)</span><input type="number" id="productPrice" placeholder="0"></label>
-          <label class="field"><span>Stock</span><input type="number" id="productStock" placeholder="0"></label>
+          <div class="full" id="productPricing" data-extras="product"></div>
+          <label class="field"><span>Stock</span><input type="number" id="productStock" placeholder="0" min="0"></label>
           <label class="field full"><span>Keywords</span><input type="text" id="productKeywords" placeholder="comma, separated, keywords"></label>
 
           <label class="field full"><span>Image</span>
@@ -193,6 +193,7 @@
           <div class="field full"><span style="font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:6px;letter-spacing:.3px;">Categories</span>
             <div class="cat-check-grid" id="productCategoryOptions"></div>
           </div>
+          <div class="full" id="productDetails"></div>
         </div>
         <div class="btn-row" style="margin-top:8px;">
           <button class="btn btn-primary" onclick="createProduct()">Create product</button>
@@ -385,10 +386,8 @@
       <input type="hidden" id="editProductId">
       <label class="field"><span>Title</span><input type="text" id="editProductTitle"></label>
       <label class="field"><span>Description</span><textarea id="editProductDescription"></textarea></label>
-      <div class="form-grid">
-        <label class="field"><span>Price (₹)</span><input type="number" id="editProductPrice"></label>
-        <label class="field"><span>Stock</span><input type="number" id="editProductStock"></label>
-      </div>
+      <div id="editProductPricing"></div>
+      <label class="field"><span>Stock</span><input type="number" id="editProductStock" min="0"></label>
       <label class="field"><span>Image URL</span><input type="text" id="editProductImage" placeholder="Image URL, or upload below"></label>
       <label class="field"><span>Upload image file</span>
         <input type="file" id="editProductImageFile" accept="image/*" onchange="uploadEditProductImage()">
@@ -398,6 +397,7 @@
       <div class="field"><span style="font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:6px;display:block;">Categories</span>
         <div class="cat-check-grid" id="editCategoryOptions"></div>
       </div>
+      <div id="editProductDetails"></div>
     </div>
     <div class="m-foot">
       <button class="btn btn-ghost" onclick="closeEdit()">Cancel</button>

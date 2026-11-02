@@ -11,6 +11,7 @@ const adminOrOwnerMiddleware =
   require("../middleware/adminOrOwnerMiddleware");
 
 const { validateBody } = require("../middleware/validate");
+const { fieldTemplateField } = require("../utils/productFields");
 
 const router = express.Router();
 
@@ -22,9 +23,13 @@ const categoryCreateSchema = z.object({
   isJewellery: z.boolean().optional()
 });
 
+// isJewellery and/or fieldTemplate (extra product field labels, e.g.
+// ["Purity", "Weight"]; null clears it). At least one must be sent.
 const categoryUpdateSchema = z.object({
-  isJewellery: z.boolean({ message: "isJewellery must be true or false" })
-}).strict();
+  isJewellery: z.boolean({ message: "isJewellery must be true or false" }).optional(),
+  fieldTemplate: fieldTemplateField.optional()
+}).strict().refine(b => b.isJewellery !== undefined || b.fieldTemplate !== undefined,
+  { message: "Nothing to update" });
 
 
 
@@ -122,6 +127,14 @@ router.get(
 
 
 // UPDATE CATEGORY SECTION (jewellery or not)
+// only the fields that were sent; an empty list means "no template"
+function categoryUpdateData(body) {
+  const data = {};
+  if (body.isJewellery !== undefined) data.isJewellery = body.isJewellery;
+  if (body.fieldTemplate !== undefined) data.fieldTemplate = body.fieldTemplate || [];
+  return data;
+}
+
 router.patch(
   "/:id",
   authMiddleware,
@@ -138,7 +151,7 @@ router.patch(
 
       const category = await prisma.category.update({
         where: { id },
-        data: { isJewellery: req.body.isJewellery }
+        data: categoryUpdateData(req.body)
       });
 
       res.json(category);

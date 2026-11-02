@@ -233,3 +233,22 @@ describe('imgSrc sizing (Cloudinary)', () => {
     expect(IMG).toEqual({ thumb: 200, story: 160, card: 600, similar: 300, detail: 1000 });
   });
 });
+
+describe("pricing helpers", () => {
+  const { discountPercent, marginInfo } = require("./api");
+  test("discount % against MRP, rounded down, only when MRP is higher", () => {
+    expect(discountPercent(499, 599)).toBe(16);
+    expect(discountPercent(500, 1000)).toBe(50);
+    expect(discountPercent(500, 500)).toBe(0);
+    expect(discountPercent(500, null)).toBe(0);
+    expect(discountPercent(600, 500)).toBe(0);
+  });
+  test("profit and margin with loss / thin / ok levels", () => {
+    expect(marginInfo(500, 300)).toEqual({ profit: 200, margin: 40, level: "ok" });
+    expect(marginInfo(500, 460)).toEqual({ profit: 40, margin: 8, level: "thin" });
+    expect(marginInfo(500, 550)).toEqual({ profit: -50, margin: -10, level: "loss" });
+    expect(marginInfo(500, "")).toBeNull();
+    expect(marginInfo(500, null)).toBeNull();
+    expect(marginInfo(0, 10)).toBeNull();
+  });
+});
