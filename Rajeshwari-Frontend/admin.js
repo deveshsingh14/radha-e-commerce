@@ -118,7 +118,7 @@ async function loadAll() {
     // everything in one call, since the admin dashboard's tables/charts
     // assume the full list today.
     const [products, orders, customers, categories, pincodeSetting] = await Promise.all([
-      api("/products?limit=200"),
+      api("/products/admin", { headers: authHeaders() }),
       api("/orders/admin/all?limit=200", { headers: authHeaders() }),
       api("/users", { headers: authHeaders() }).catch(() => []),
       api("/categories"),
@@ -288,8 +288,10 @@ document.getElementById("revRange").addEventListener("click", e => {
 
 function downloadCsvTemplate(e) {
   e.preventDefault();
-  const headers = ["title", "description", "price", "image", "stock", "keywords", "category"];
-  const sampleData = ["Beautiful Saree", "Silk saree from Banaras", "2500", "https://example.com/saree.jpg", "10", "saree, silk", "Sarees"];
+  const headers = ["title", "description", "price", "mrp", "cost_price", "stock", "image", "keywords", "category",
+    "brand", "sku", "size", "color", "material", "tags"];
+  const sampleData = ["Beautiful Saree", "Silk saree from Banaras", "2500", "2999", "1800", "10", "https://example.com/saree.jpg",
+    "saree silk", "Sarees", "Radha", "SAR-001", "Free size", "Red", "Banarasi silk", "silk;wedding"];
   const csvContent = headers.join(",") + "\n" + sampleData.join(",");
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
@@ -300,6 +302,139 @@ function downloadCsvTemplate(e) {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+// ---- pricing + details fields (shared by "Add product" and "Edit") ----
+// POST/PUT/PATCH that surfaces the server's message (e.g. the MRP rule).
+async function saveJSON(path, method, body) {
+  const res = await fetch(`${API_URL}${path}`, { method, headers: authHeaders(true), body: JSON.stringify(body) });
+  if (handle401(res)) throw new Error("Please log in again");
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = data && data.errors && data.errors[0] ? data.errors[0].message : "";
+    throw new Error(detail || (data && data.message) || `Request failed (${res.status})`);
+  }
+  return data;
+}
+
+function priceSubline(p) {
+  const bits = [];
+  const off = discountPercent(p.price, p.mrp);
+  if (p.mrp) bits.push(`MRP ${inr(p.mrp)}${off ? ` · ${off}% off` : ""}`);
+  const m = marginInfo(p.price, p.costPrice);
+  if (m) bits.push(`<span class="margin-${m.level}">${m.level === "loss" ? "Loss" : "Profit"} ${inr(Math.abs(m.profit))} · ${m.margin}%</span>`);
+  return bits.length ? `<div class="cell-sub">${bits.join("<br>")}</div>` : "";
+}
+
+const DETAIL_FIELDS = [["brand", "Brand"], ["sku", "SKU / item code"], ["size", "Size"], ["color", "Colour"], ["material", "Material"]];
+
+function renderProductExtras(prefix, p) {
+  const pricing = document.getElementById(`${prefix}Pricing`);
+  const details = document.getElementById(`${prefix}Details`);
+  if (!pricing || !details) return;
+  const v = x => (x === null || x === undefined ? "" : esc(x));
+  pricing.innerHTML = `
+    <div class="price-grid">
+      <label class="field"><span>Selling price (₹) *</span><input type="number" min="0" step="0.01" id="${prefix}Price" value="${v(p.price)}" placeholder="What the customer pays"></label>
+      <label class="field"><span>MRP (₹)</span><input type="number" min="0" step="0.01" id="${prefix}Mrp" value="${v(p.mrp)}" placeholder="Printed price (optional)"></label>
+      <label class="field"><span>Cost price (₹) <em class="private-tag">only you see this</em></span><input type="number" min="0" step="0.01" id="${prefix}Cost" value="${v(p.costPrice)}" placeholder="What you paid (optional)"></label>
+    </div>
+    <div class="price-info" id="${prefix}PriceInfo" aria-live="polite"></div>`;
+  details.innerHTML = `
+    <details class="more-details" ${hasDetails(p) ? "open" : ""}>
+      <summary>Product details &amp; extra fields</summary>
+      <div class="form-grid">
+        ${DETAIL_FIELDS.map(([k, label]) => `<label class="field"><span>${label}</span><input type="text" id="${prefix}_${k}" value="${v(p[k])}" maxlength="${k === "sku" ? 40 : 60}"></label>`).join("")}
+        <label class="field"><span>Tags</span><input type="text" id="${prefix}_tags" value="${v((p.tags || []).join(", "))}" placeholder="bridal, gift, kundan"></label>
+      </div>
+      <div class="attr-head"><span>Extra fields</span><span class="cell-sub">Template fields come from the chosen categories; leave a value blank to skip it.</span></div>
+      <div class="attr-list" id="${prefix}Attrs"></div>
+      <button type="button" class="btn btn-sm" id="${prefix}AddAttr">+ Add custom field</button>
+    </details>`;
+  const list = document.getElementById(`${prefix}Attrs`);
+  (Array.isArray(p.attributes) ? p.attributes : []).forEach(a => addAttrRow(list, a.label, a.value));
+  applyTemplates(prefix);
+  document.getElementById(`${prefix}AddAttr`).addEventListener("click", () => addAttrRow(list, "", "", true));
+  ["Price", "Mrp", "Cost"].forEach(f => document.getElementById(`${prefix}${f}`).addEventListener("input", () => updatePriceInfo(prefix)));
+  const cats = document.getElementById(prefix === "product" ? "productCategoryOptions" : "editCategoryOptions");
+  if (cats && !cats._tplBound) { cats._tplBound = true; cats.addEventListener("change", () => applyTemplates(prefix)); }
+  updatePriceInfo(prefix);
+}
+function hasDetails(p) {
+  return DETAIL_FIELDS.some(([k]) => p[k]) || (p.tags || []).length || (Array.isArray(p.attributes) && p.attributes.length);
+}
+function addAttrRow(list, label, value, focus) {
+  const row = document.createElement("div");
+  row.className = "attr-row";
+  row.innerHTML = `<input type="text" class="attr-label" maxlength="40" placeholder="Field (e.g. Purity)">
+    <input type="text" class="attr-value" maxlength="200" placeholder="Value (e.g. 22K)">
+    <button type="button" class="btn btn-sm btn-ghost" aria-label="Remove field">×</button>`;
+  row.querySelector(".attr-label").value = label || "";   // .value: never parsed as HTML
+  row.querySelector(".attr-value").value = value || "";
+  row.querySelector("button").addEventListener("click", () => row.remove());
+  list.appendChild(row);
+  if (focus) row.querySelector(".attr-label").focus();
+  return row;
+}
+// add any template fields of the ticked categories that aren't there yet
+function applyTemplates(prefix) {
+  const list = document.getElementById(`${prefix}Attrs`);
+  const cats = document.getElementById(prefix === "product" ? "productCategoryOptions" : "editCategoryOptions");
+  if (!list || !cats) return;
+  const have = new Set([...list.querySelectorAll(".attr-label")].map(i => i.value.trim().toLowerCase()));
+  [...cats.querySelectorAll("input:checked")].forEach(box => {
+    const cat = CATEGORIES.find(c => String(c.id) === box.value);
+    templateOf(cat).forEach(label => {
+      if (have.has(label.toLowerCase())) return;
+      have.add(label.toLowerCase());
+      addAttrRow(list, label, "");
+    });
+  });
+}
+function readProductExtras(prefix) {
+  const get = id => (document.getElementById(id) || { value: "" }).value.trim();
+  const out = { price: get(`${prefix}Price`), mrp: get(`${prefix}Mrp`) || null, costPrice: get(`${prefix}Cost`) || null };
+  DETAIL_FIELDS.forEach(([k]) => { out[k] = get(`${prefix}_${k}`) || null; });
+  out.tags = get(`${prefix}_tags`).split(",").map(t => t.trim()).filter(Boolean);
+  out.attributes = [...document.querySelectorAll(`#${prefix}Attrs .attr-row`)]
+    .map(r => ({ label: r.querySelector(".attr-label").value.trim(), value: r.querySelector(".attr-value").value.trim() }))
+    .filter(a => a.label && a.value);
+  return out;
+}
+// Live summary under the three price boxes.
+function pricingSummary(price, mrp, cost) {
+  price = Number(price);
+  if (!(price > 0)) return { level: "", text: "Enter the selling price." };
+  if (mrp !== "" && mrp !== null && mrp !== undefined && Number(mrp) < price) {
+    return { level: "error", text: `Selling price is above the MRP (${inr(mrp)}). Products can't be sold above MRP.` };
+  }
+  const parts = [];
+  const off = discountPercent(price, mrp);
+  if (off) parts.push(`Customers see ${inr(price)} <s>${inr(mrp)}</s> · ${off}% off`);
+  const m = marginInfo(price, cost);
+  let level = "ok";
+  if (m) {
+    if (m.level === "loss") { level = "loss"; parts.push(`⚠ Loss of ${inr(-m.profit)} on every sale (cost ${inr(cost)})`); }
+    else if (m.level === "thin") { level = "thin"; parts.push(`⚠ Thin margin: profit ${inr(m.profit)} (${m.margin}%) per sale`); }
+    else parts.push(`Profit ${inr(m.profit)} per sale (${m.margin}% margin)`);
+  } else parts.push("Add the cost price to see your profit.");
+  return { level, text: parts.join("<br>") };
+}
+function updatePriceInfo(prefix) {
+  const el = document.getElementById(`${prefix}PriceInfo`);
+  if (!el) return;
+  const g = f => document.getElementById(`${prefix}${f}`).value.trim();
+  const r = pricingSummary(g("Price"), g("Mrp"), g("Cost"));
+  el.className = `price-info ${r.level ? "pi-" + r.level : ""}`;
+  el.innerHTML = r.text;   // only numbers formatted by inr(); no user text
+}
+// Block MRP < price; ask before saving at a loss or a thin margin.
+function confirmPricing(body) {
+  if (body.mrp && Number(body.mrp) < Number(body.price)) { toast("Selling price can't be more than the MRP", "err"); return false; }
+  const m = marginInfo(body.price, body.costPrice);
+  if (m && m.level === "loss") return confirm(`You will LOSE ${inr(-m.profit)} on every sale of this product (cost ${inr(body.costPrice)}, price ${inr(body.price)}).\n\nSave anyway?`);
+  if (m && m.level === "thin") return confirm(`Profit is only ${inr(m.profit)} (${m.margin}%) per sale.\n\nSave anyway?`);
+  return true;
 }
 
 async function handleBulkUpload(e) {
@@ -321,7 +456,8 @@ async function handleBulkUpload(e) {
     if (res.ok) {
       toast(data.message);
       if (data.errors && data.errors.length) {
-        toast(`Completed with ${data.errors.length} errors.`);
+        toast(`${data.errors.length} row(s) skipped — first: ${data.errors[0]}`, "err");
+        console.warn("CSV rows skipped:", data.errors);
       }
       await loadAll();
     } else {
@@ -342,13 +478,16 @@ function populateCategoryFilters() {
   const boxes = CATEGORIES.map(c => `
     <label class="cat-option"><input type="checkbox" value="${c.id}"> ${c.isJewellery ? "💍 " : ""}${esc(c.name)}</label>`).join("");
   document.getElementById("productCategoryOptions").innerHTML = boxes || `<span class="cell-sub">Create a category first.</span>`;
+  // the add form's price/detail fields are built once (kept across reloads)
+  if (!document.getElementById("productPrice")) renderProductExtras("product", {});
+  else applyTemplates("product");
 }
 function filteredProducts() {
   const q = document.getElementById("productSearch").value.toLowerCase().trim();
   const cat = document.getElementById("productCategoryFilter").value;
   const stock = document.getElementById("productStockFilter").value;
   return PRODUCTS.filter(p => {
-    if (q && !(`${p.title} ${p.keywords || ""}`.toLowerCase().includes(q))) return false;
+    if (q && !(`${p.title} ${p.keywords || ""} ${p.sku || ""} ${p.brand || ""}`.toLowerCase().includes(q))) return false;
     if (cat && !(p.categories || []).some(c => String(c.category.id) === cat)) return false;
     if (stock === "in" && p.stock <= LOW_STOCK) return false;
     if (stock === "low" && !(p.stock > 0 && p.stock <= LOW_STOCK)) return false;
@@ -366,12 +505,12 @@ function renderProducts() {
           <div><div class="cell-strong">${esc(p.title)}</div><div class="cell-sub">#${p.id}</div></div>
         </td>
         <td>${(p.categories || []).map(c => `<span class="chip">${esc(c.category.name)}</span>`).join("") || "<span class='cell-sub'>—</span>"}</td>
-        <td class="num cell-strong">${inr(p.price)}</td>
+        <td class="num"><div class="cell-strong">${inr(p.price)}</div>${priceSubline(p)}</td>
         <td class="num">${p.stock}</td>
         <td class="num">${Number(p.viewCount) || 0}</td>
         <td>${stockBadge(p.stock)}</td>
         <td><div class="btn-row">
-          <button class="btn btn-sm" onclick="openEdit(${esc(JSON.stringify(p))})">Edit</button>
+          <button class="btn btn-sm" onclick="openEditById(${p.id})">Edit</button>
           <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})">Delete</button>
         </div></td>
       </tr>`).join("")
@@ -384,12 +523,14 @@ async function createProduct() {
   const categoryIds = [...document.querySelectorAll("#productCategoryOptions input:checked")].map(i => Number(i.value));
   const body = {
     title: val("productTitle"), description: val("productDescription"),
-    price: val("productPrice"), image: val("productImage"),
-    stock: val("productStock"), keywords: val("productKeywords"), categoryIds
+    image: val("productImage"),
+    stock: val("productStock"), keywords: val("productKeywords"), categoryIds,
+    ...readProductExtras("product")
   };
-  if (!body.title || !body.price) return toast("Title and price are required", "err");
+  if (!body.title || !body.price) return toast("Title and selling price are required", "err");
+  if (!confirmPricing(body)) return;
   try {
-    await api("/products", { method: "POST", headers: authHeaders(true), body: JSON.stringify(body) });
+    await saveJSON("/products", "POST", body);
     toast("Product created");
     resetProductForm();
     await loadAll();
@@ -397,8 +538,9 @@ async function createProduct() {
   } catch (e) { catchErr(e, "Couldn't create product"); }
 }
 function resetProductForm() {
-  ["productTitle", "productDescription", "productPrice", "productImage", "productStock", "productKeywords"].forEach(id => document.getElementById(id).value = "");
+  ["productTitle", "productDescription", "productImage", "productStock", "productKeywords"].forEach(id => document.getElementById(id).value = "");
   document.querySelectorAll("#productCategoryOptions input:checked").forEach(i => i.checked = false);
+  renderProductExtras("product", {});
   document.getElementById("uploadStatus").textContent = "";
 }
 async function uploadProductImage() {
@@ -427,17 +569,18 @@ async function deleteProduct(id) {
 function val(id) { return document.getElementById(id).value; }
 
 // edit modal
+function openEditById(id) { const p = productById[id]; if (p) openEdit(p); }
 function openEdit(p) {
   document.getElementById("editProductId").value = p.id;
   document.getElementById("editProductTitle").value = p.title || "";
   document.getElementById("editProductDescription").value = p.description || "";
-  document.getElementById("editProductPrice").value = p.price ?? "";
   document.getElementById("editProductStock").value = p.stock ?? "";
   document.getElementById("editProductImage").value = p.image || "";
   document.getElementById("editProductKeywords").value = p.keywords || "";
   const checked = new Set((p.categories || []).map(c => c.category.id));
   document.getElementById("editCategoryOptions").innerHTML = CATEGORIES.map(c => `
     <label class="cat-option"><input type="checkbox" value="${c.id}" ${checked.has(c.id) ? "checked" : ""}> ${c.isJewellery ? "💍 " : ""}${esc(c.name)}</label>`).join("");
+  renderProductExtras("editProduct", p);
   document.getElementById("editProductImageFile").value = "";
   document.getElementById("editUploadStatus").textContent = "";
   document.getElementById("editModal").classList.add("open");
@@ -463,20 +606,27 @@ async function updateProduct() {
   const categoryIds = [...document.querySelectorAll("#editCategoryOptions input:checked")].map(i => Number(i.value));
   const body = {
     title: val("editProductTitle"), description: val("editProductDescription"),
-    price: val("editProductPrice"), image: val("editProductImage"),
-    stock: val("editProductStock"), keywords: val("editProductKeywords"), categoryIds
+    image: val("editProductImage"),
+    stock: val("editProductStock"), keywords: val("editProductKeywords"), categoryIds,
+    ...readProductExtras("editProduct")
   };
+  if (!body.price) return toast("Selling price is required", "err");
+  if (!confirmPricing(body)) return;
   try {
-    await api(`/products/${id}`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify(body) });
+    await saveJSON(`/products/${id}`, "PUT", body);
     toast("Product updated");
     closeEdit();
     await loadAll();
   } catch (e) { catchErr(e, "Couldn't update"); }
 }
 function exportProductsCSV() {
-  const rows = [["ID", "Title", "Price", "Stock", "Views", "Categories", "Keywords"]];
-  filteredProducts().forEach(p => rows.push([p.id, p.title, p.price, p.stock, Number(p.viewCount) || 0,
-    (p.categories || []).map(c => c.category.name).join(" | "), p.keywords || ""]));
+  const rows = [["ID", "Title", "Price", "MRP", "Cost price", "Profit", "Margin %", "Stock", "Views", "SKU", "Brand", "Categories", "Keywords"]];
+  filteredProducts().forEach(p => {
+    const m = marginInfo(p.price, p.costPrice);
+    rows.push([p.id, p.title, p.price, p.mrp ?? "", p.costPrice ?? "", m ? m.profit : "", m ? m.margin : "",
+      p.stock, Number(p.viewCount) || 0, p.sku || "", p.brand || "",
+      (p.categories || []).map(c => c.category.name).join(" | "), p.keywords || ""]);
+  });
   downloadCSV("products.csv", rows);
 }
 
@@ -500,7 +650,10 @@ function renderCategories() {
             <span>Jewellery &amp; Bangles page</span>
           </label>
         </div>
-        <button class="btn btn-sm btn-danger" onclick="deleteCategory(${c.id})">Delete</button>
+        <div class="btn-row">
+          <button class="btn btn-sm" onclick="editCategoryTemplate(${c.id})" title="Extra fields products in this category usually have">Fields${templateOf(c).length ? ` (${templateOf(c).length})` : ""}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteCategory(${c.id})">Delete</button>
+        </div>
       </div>`).join("")
     : `<div class="empty" style="grid-column:1/-1;"><div class="big">❖</div>No categories yet — add one above.</div>`;
 }
@@ -535,6 +688,24 @@ async function setCategoryJewellery(id, isJewellery, checkbox) {
     catchErr(e, "Couldn't update category");
   }
 }
+// Category template: the extra field names its products usually have
+// (e.g. Purity, Weight). The product form pre-fills them.
+function templateOf(c) { return Array.isArray(c && c.fieldTemplate) ? c.fieldTemplate : []; }
+async function editCategoryTemplate(id) {
+  const cat = CATEGORIES.find(c => c.id === id);
+  if (!cat) return;
+  const input = prompt(`Extra fields for "${cat.name}" products, separated by commas (e.g. Purity, Weight, Stone):`,
+    templateOf(cat).join(", "));
+  if (input === null) return;
+  const fieldTemplate = input.split(",").map(x => x.trim()).filter(Boolean);
+  try {
+    const updated = await saveJSON(`/categories/${id}`, "PATCH", { fieldTemplate });
+    cat.fieldTemplate = updated && Array.isArray(updated.fieldTemplate) ? updated.fieldTemplate : fieldTemplate;
+    toast(fieldTemplate.length ? "Template saved" : "Template cleared");
+    renderCategories();
+  } catch (e) { catchErr(e, e.message || "Couldn't save template"); }
+}
+
 async function deleteCategory(id) {
   if (!confirm("Delete this category?")) return;
   try {
@@ -1162,6 +1333,12 @@ if (typeof module !== "undefined") {
     ORDER_STATUSES,
     ROLE_LABELS,
     setCategoryJewellery,
+    pricingSummary,
+    confirmPricing,
+    priceSubline,
+    readProductExtras,
+    renderProductExtras,
+    editCategoryTemplate,
     renderCategories,
     renderCustomers,
     customerActions,

@@ -46,7 +46,8 @@ if (typeof compactCount !== "function") window.compactCount = () => "";
 function normalizeProduct(p) {
   const categoryList = (p.categories || [])
     .map(c => c.category && c.category.name).filter(Boolean);
-  const _searchIndex = `${p.title} ${p.description || ""} ${p.keywords || ""} ${categoryList.join(" ")}`.toLowerCase();
+  const extra = [p.brand, p.color, p.material, p.size, ...(p.tags || [])].filter(Boolean).join(" ");
+  const _searchIndex = `${p.title} ${p.description || ""} ${p.keywords || ""} ${categoryList.join(" ")} ${extra}`.toLowerCase();
   return { ...p, categoryList, category: categoryList[0] || "", jewellery: isJewelleryProduct(p), _searchIndex };
 }
 
@@ -158,6 +159,29 @@ async function boot() {
   refreshWishlist();
   refreshCartCount();
   updateAuthUI();
+}
+
+// Selling price, with the printed MRP struck through and "% off" when lower.
+function priceHTML(p, cls) {
+  const off = discountPercent(p.price, p.mrp);
+  if (!off) return `<span class="${cls}">${inr(p.price)}</span>`;
+  return `<span class="${cls}">${inr(p.price)}</span>` +
+    `<s class="mrp" aria-label="MRP ${inr(p.mrp)}">${inr(p.mrp)}</s>` +
+    `<span class="off">${off}% off</span>`;
+}
+
+// Product details table on the sheet: standard fields, then the
+// category-template / custom fields. Everything is escaped.
+function detailsHTML(p) {
+  const rows = [["Brand", p.brand], ["Size", p.size], ["Colour", p.color], ["Material", p.material]]
+    .filter(([, v]) => v);
+  for (const a of Array.isArray(p.attributes) ? p.attributes : []) {
+    if (a && a.label && a.value) rows.push([a.label, a.value]);
+  }
+  if (!rows.length) return "";
+  return `<table class="sh-details"><caption>Details</caption><tbody>` +
+    rows.map(([k, v]) => `<tr><th scope="row">${esc(k)}</th><td>${esc(v)}</td></tr>`).join("") +
+    `</tbody></table>`;
 }
 
 // 👁 shown to everyone once a product has 10+ unique daily visitors.
@@ -341,7 +365,7 @@ function createProductCard(p) {
     <div class="pin-meta">
       <div class="pin-title">${esc(p.title)}</div>
       <div class="pin-row">
-        <span class="pin-price">${inr(p.price)}</span>
+        <span class="pin-prices">${priceHTML(p, "pin-price")}</span>
         <span class="pin-right">${viewsHTML(p)}<span class="pin-cat">${esc(p.category)}</span></span>
       </div>
     </div>
@@ -497,10 +521,11 @@ function openSheet(id) {
       <h2 class="sh-title">${esc(p.title)}</h2>
       <p class="sh-desc">${esc(p.description)}</p>
       <div class="sh-price-row">
-        <span class="sh-price">${inr(p.price)}</span>
+        <span class="sh-prices">${priceHTML(p, "sh-price")}</span>
         <span class="sh-stock ${stockCls}">${stockTxt}</span>
         ${viewsHTML(p)}
       </div>
+      ${detailsHTML(p)}
       <div class="sh-cats">
         ${p.categoryList.map(c =>
           `<button class="sh-chip" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}

@@ -26,6 +26,8 @@ global.token = () => "mock-token";
 global.authHeaders = jest.fn(() => ({}));
 global.handle401 = jest.fn(() => false);
 global.inr = jest.fn((n) => "₹" + n);
+global.discountPercent = require("./api").discountPercent;
+global.marginInfo = require("./api").marginInfo;
 global.Chart = jest.fn().mockImplementation(() => ({
   destroy: jest.fn()
 }));
@@ -313,5 +315,55 @@ describe('orders whose customer account was deleted', () => {
   it('labels deleted accounts only', () => {
     expect(deletedAccountTag(gone)).toMatch(/Deleted account/);
     expect(deletedAccountTag(live)).toBe('');
+  });
+});
+
+describe("pricing guardrails (admin)", () => {
+  const admin = require("./admin");
+  test("live summary: discount, profit, thin margin, loss, MRP error", () => {
+    expect(admin.pricingSummary("", "", "").text).toMatch(/Enter the selling price/);
+    let r = admin.pricingSummary("499", "599", "300");
+    expect(r.level).toBe("ok");
+    expect(r.text).toMatch(/16% off/);
+    expect(r.text).toMatch(/Profit ₹199/);
+    expect(admin.pricingSummary("500", "", "460").level).toBe("thin");
+    r = admin.pricingSummary("500", "", "550");
+    expect(r.level).toBe("loss");
+    expect(r.text).toMatch(/Loss of ₹50/);
+    expect(admin.pricingSummary("700", "600", "").level).toBe("error");
+    expect(admin.pricingSummary("500", "", "").text).toMatch(/Add the cost price/);
+  });
+  test("saving: MRP below price is blocked; loss and thin margin ask first", () => {
+    window.confirm = jest.fn(() => false);
+    expect(admin.confirmPricing({ price: "700", mrp: "600" })).toBe(false);
+    expect(window.confirm).not.toHaveBeenCalled();
+    expect(admin.confirmPricing({ price: "500", costPrice: "550" })).toBe(false);
+    expect(window.confirm.mock.calls[0][0]).toMatch(/LOSE ₹50/);
+    window.confirm = jest.fn(() => true);
+    expect(admin.confirmPricing({ price: "500", costPrice: "460" })).toBe(true);
+    expect(window.confirm.mock.calls[0][0]).toMatch(/only ₹40/);
+    window.confirm = jest.fn();
+    expect(admin.confirmPricing({ price: "500", mrp: "600", costPrice: "300" })).toBe(true);
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+  test("products table shows MRP and margin", () => {
+    const html = admin.priceSubline({ price: 500, mrp: 600, costPrice: 550 });
+    expect(html).toMatch(/MRP ₹600 · 16% off/);
+    expect(html).toMatch(/margin-loss/);
+    expect(admin.priceSubline({ price: 500 })).toBe("");
+  });
+  test("form round-trip: fields, template rows, custom fields; values never parsed as HTML", () => {
+    document.body.insertAdjacentHTML("beforeend",
+      `<div id="editProductPricing"></div><div id="editProductDetails"></div><div id="editCategoryOptions"><input type="checkbox" value="4" checked></div>`);
+    admin._setState({ CATEGORIES: [{ id: 4, name: "Gold", fieldTemplate: ["Purity", "Weight"] }] });
+    admin.renderProductExtras("editProduct", { price: 500, mrp: 600, costPrice: 300, brand: "<b>x</b>", tags: ["gift"],
+      attributes: [{ label: "Purity", value: "22K" }, { label: "Stone", value: "<img src=x onerror=alert(1)>" }] });
+    expect(document.querySelector("#editProductDetails img")).toBeNull();
+    const labels = [...document.querySelectorAll("#editProductAttrs .attr-label")].map(i => i.value);
+    expect(labels).toEqual(["Purity", "Stone", "Weight"]); // template "Weight" added, "Purity" not duplicated
+    const body = admin.readProductExtras("editProduct");
+    expect(body).toMatchObject({ price: "500", mrp: "600", costPrice: "300", brand: "<b>x</b>", tags: ["gift"] });
+    expect(body.attributes).toEqual([{ label: "Purity", value: "22K" }, { label: "Stone", value: "<img src=x onerror=alert(1)>" }]);
+    expect(document.getElementById("editProductPriceInfo").textContent).toMatch(/Profit/);
   });
 });

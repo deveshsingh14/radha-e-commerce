@@ -47,7 +47,22 @@ model Product {
   createdAt   DateTime          @default(now())
   categories  ProductCategory[]
   // unique visitors per day, summed (the public 👁 count; shown from 10)
-  viewCount   Int      @default(0)
+  viewCount   Int               @default(0)
+
+  // pricing: price = selling price; mrp = printed max retail price (never
+  // sell above it); costPrice = what the shop paid (ADMIN/OWNER only —
+  // hidden from every query by the global omit in src/config/db.js)
+  mrp        Float?
+  costPrice  Float?
+  // details shown on the product sheet
+  brand      String?
+  sku        String?  @unique
+  size       String?
+  color      String?
+  material   String?
+  tags       String[] @default([])
+  // [{ label, value }] — category template fields + one-off extras
+  attributes Json?
 
   cartItems     Cart[]
   wishlistItems Wishlist[]
@@ -57,12 +72,15 @@ model Product {
 }
 
 model Category {
-  id          Int               @id @default(autoincrement())
-  name        String            @unique
+  id            Int               @id @default(autoincrement())
+  name          String            @unique
   // true -> shown on the Jewellery & Bangles page, hidden from the main feed
-  isJewellery Boolean           @default(false)
-  createdAt   DateTime          @default(now())
-  products    ProductCategory[]
+  isJewellery   Boolean           @default(false)
+  // labels of the extra fields products in this category usually have,
+  // e.g. ["Purity", "Weight"]; the admin form pre-fills them
+  fieldTemplate Json?
+  createdAt     DateTime          @default(now())
+  products      ProductCategory[]
 
   @@map("category")
 }

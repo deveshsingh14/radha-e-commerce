@@ -8,6 +8,7 @@ const cloudinary = require("../config/cloudinary");
 const { z } = require("zod");
 const { validateBody } = require("../middleware/validate");
 const { uploadLimiter } = require("../middleware/authRateLimiter");
+const { ADMIN_PRODUCT_OMIT, productFields, pricingError } = require("../utils/productFields");
 
 const router = express.Router();
 
@@ -23,7 +24,8 @@ const productCreateSchema = z.object({
   stock: z.coerce.number().int("Stock must be a whole number").nonnegative("Stock must not be negative"),
   image: z.string().nullish(),
   keywords: z.string().nullish(),
-  categoryIds: z.array(z.coerce.number().int()).optional()
+  categoryIds: z.array(z.coerce.number().int()).optional(),
+  ...productFields
 });
 
 // Same shape, every field optional — PUT /:id only updates what's sent.
@@ -40,6 +42,34 @@ const fs = require("fs");
 const csv = require("csv-parser");
 
 const csvUpload = multer({ dest: "uploads/csv/" });
+
+// One CSV row -> validated product data (same rules as the admin form).
+// Columns: title, description, price, mrp, cost_price, stock, image,
+// keywords, category, brand, sku, size, color, material, tags (";"-separated)
+function csvRowToProduct(row) {
+  const pick = (...keys) => { for (const k of keys) if (row[k] !== undefined) return row[k]; return undefined; };
+  const input = {
+    title: pick("title"),
+    description: pick("description") || "",
+    price: pick("price"),
+    stock: pick("stock") || 0,
+    image: (pick("image") || "").trim() || null,
+    keywords: pick("keywords") || "",
+    mrp: pick("mrp", "MRP"),
+    costPrice: pick("cost_price", "costPrice", "cost"),
+    brand: pick("brand"),
+    sku: pick("sku", "SKU"),
+    size: pick("size"),
+    color: pick("color", "colour"),
+    material: pick("material"),
+    tags: pick("tags")
+  };
+  const r = productCreateSchema.omit({ categoryIds: true }).safeParse(input);
+  if (!r.success) return { error: r.error.issues.map(i => i.message).join("; ") };
+  const priceErr = pricingError(r.data.price, r.data.mrp);
+  if (priceErr) return { error: priceErr };
+  return { data: r.data };
+}
 
 // ---- BULK UPLOAD PRODUCTS (ETL) ----
 router.post("/bulk-upload", authMiddleware, adminOrOwnerMiddleware, csvUpload.single("file"), async (req, res) => {
@@ -61,15 +91,16 @@ router.post("/bulk-upload", authMiddleware, adminOrOwnerMiddleware, csvUpload.si
 
         for (let i = 0; i < results.length; i++) {
           const row = results[i];
-          const { title, description, price, image, stock, keywords, category } = row;
+          const { title, price, category } = row;
 
           // Ignore completely empty rows (e.g. from trailing commas in CSV)
           if (!title && !price && !category) {
             continue;
           }
 
-          if (!title || !price) {
-            errors.push(`Row missing required fields (title or price): ${title || "Unknown"}`);
+          const parsed = csvRowToProduct(row);
+          if (parsed.error) {
+            errors.push(`Row ${i + 2} (${title || "no title"}): ${parsed.error}`);
             continue;
           }
 
@@ -78,16 +109,7 @@ router.post("/bulk-upload", authMiddleware, adminOrOwnerMiddleware, csvUpload.si
             uniqueCategories.add(catName);
           }
 
-          validRows.push({
-            title,
-            description: description || "",
-            price: parseFloat(price) || 0,
-            image: image && image.trim() ? image.trim() : null,
-            stock: parseInt(stock) || 0,
-            keywords: keywords || "",
-            categoryName: catName,
-            originalRow: row
-          });
+          validRows.push({ data: parsed.data, title: parsed.data.title, categoryName: catName });
         }
 
         // 2. Fetch and create missing categories
@@ -124,17 +146,7 @@ router.post("/bulk-upload", authMiddleware, adminOrOwnerMiddleware, csvUpload.si
               }
             }
 
-            return prisma.product.create({
-              data: {
-                title: row.title,
-                description: row.description,
-                price: row.price,
-                image: row.image,
-                stock: row.stock,
-                keywords: row.keywords,
-                categories: catData
-              }
-            });
+            return prisma.product.create({ select: { id: true }, data: { ...row.data, categories: catData } });
           });
 
           try {
@@ -153,17 +165,7 @@ router.post("/bulk-upload", authMiddleware, adminOrOwnerMiddleware, csvUpload.si
                 }
               }
 
-              return prisma.product.create({
-                data: {
-                  title: row.title,
-                  description: row.description,
-                  price: row.price,
-                  image: row.image,
-                  stock: row.stock,
-                  keywords: row.keywords,
-                  categories: catData
-                }
-              });
+              return prisma.product.create({ select: { id: true }, data: { ...row.data, categories: catData } });
             });
 
             const results = await Promise.allSettled(fallbackPromises);
@@ -172,7 +174,8 @@ router.post("/bulk-upload", authMiddleware, adminOrOwnerMiddleware, csvUpload.si
               if (result.status === 'fulfilled') {
                 successCount++;
               } else {
-                errors.push(`Error processing ${validRows[index].title}: ${result.reason.message}`);
+                const reason = result.reason && result.reason.code === "P2002" ? "SKU already used" : "could not be saved";
+                errors.push(`Error processing ${validRows[index].title}: ${reason}`);
               }
             });
           }
@@ -238,6 +241,23 @@ router.get("/", async (req, res) => {
   }
 });
 
+// ---- ALL PRODUCTS WITH COST PRICE (admin/owner) ----
+// Registered before "/:id" so "admin" is never read as an id.
+router.get("/admin", authMiddleware, adminOrOwnerMiddleware, async (req, res) => {
+  try {
+    const items = await prisma.product.findMany({
+      omit: ADMIN_PRODUCT_OMIT,
+      include: { categories: { include: { category: true } } },
+      orderBy: { id: "asc" },
+      take: 1000
+    });
+    res.json({ items, total: items.length });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ message: "Error fetching products" });
+  }
+});
+
 // ---- GET SINGLE PRODUCT BY ID (public) ----
 router.get("/:id", async (req, res) => {
   try {
@@ -293,10 +313,15 @@ router.post(
         image,
         stock,
         keywords,
-        categoryIds
+        categoryIds,
+        ...details
       } = req.body;
 
+      const priceErr = pricingError(price, details.mrp);
+      if (priceErr) return res.status(400).json({ message: priceErr });
+
       const product = await prisma.product.create({
+        omit: ADMIN_PRODUCT_OMIT,
         data: {
           title,
           description,
@@ -304,6 +329,7 @@ router.post(
           image: image && image.trim() ? image.trim() : null,
           stock,
           keywords,
+          ...details,
           categories: {
             create: (categoryIds || []).map(id => ({
               category: {
@@ -323,6 +349,7 @@ router.post(
 
       res.json(product);
     } catch (error) {
+      if (error && error.code === "P2002") return res.status(409).json({ message: "That SKU is already used by another product" });
       logger.error(error);
       res.status(500).json({
         message: "Something went wrong"
@@ -345,6 +372,7 @@ router.put(
   async (req, res) => {
     try {
       const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id < 1) return res.status(400).json({ message: "Invalid product id" });
 
       const {
         title,
@@ -353,20 +381,31 @@ router.put(
         image,
         stock,
         keywords,
-        categoryIds
+        categoryIds,
+        ...details
       } = req.body;
+
+      // MRP check uses the stored value for whichever side wasn't sent
+      if (price !== undefined || details.mrp !== undefined) {
+        const current = await prisma.product.findUnique({ where: { id }, select: { price: true, mrp: true } });
+        if (!current) return res.status(404).json({ message: "Product not found" });
+        const priceErr = pricingError(price ?? current.price, details.mrp !== undefined ? details.mrp : current.mrp);
+        if (priceErr) return res.status(400).json({ message: priceErr });
+      }
 
       const updatedProduct = await prisma.$transaction(async (tx) => {
 
         const product = await tx.product.update({
           where: { id },
+          select: { id: true },
           data: {
             title,
             description,
             price,
             image: image !== undefined ? (image && image.trim() ? image.trim() : null) : undefined,
             stock,
-            keywords
+            keywords,
+            ...details
           }
         });
 
@@ -391,6 +430,7 @@ router.put(
 
         return tx.product.findUnique({
           where: { id },
+          omit: ADMIN_PRODUCT_OMIT,
           include: {
             categories: {
               include: { category: true }
@@ -401,6 +441,8 @@ router.put(
 
       res.json(updatedProduct);
     } catch (error) {
+      if (error && error.code === "P2002") return res.status(409).json({ message: "That SKU is already used by another product" });
+      if (error && error.code === "P2025") return res.status(404).json({ message: "Product not found" });
       logger.error(error);
       res.status(500).json({
         message: "Error updating product"
@@ -487,3 +529,4 @@ router.post(
 );
 
 module.exports = router;
+module.exports.csvRowToProduct = csvRowToProduct;

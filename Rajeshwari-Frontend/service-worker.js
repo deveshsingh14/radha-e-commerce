@@ -15,7 +15,7 @@
    Bump CACHE_VERSION whenever SHELL_ASSETS or this logic changes.
    ============================================================ */
 
-const CACHE_VERSION = "v9";
+const CACHE_VERSION = "v10";
 const SHELL_CACHE = `radha-shell-${CACHE_VERSION}`;
 const IMG_CACHE = `radha-img-${CACHE_VERSION}`;
 
