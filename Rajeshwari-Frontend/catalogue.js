@@ -34,11 +34,29 @@ function writeCatalogue(storage, products, categories, now = Date.now()) {
   }
 }
 
-// True when freshly fetched data differs from what is on screen.
+// Live counters (👁 views, later ★ ratings) change all the time; they are
+// patched in place instead of re-rendering the feed (no scroll jump).
+const VOLATILE_FIELDS = ["viewCount", "ratingAvg", "ratingCount", "updatedAt"];
+function withoutCounters(products) {
+  return (products || []).map(p => {
+    const o = { ...p };
+    for (const f of VOLATILE_FIELDS) delete o[f];
+    return o;
+  });
+}
+
+// True when freshly fetched data differs from what is on screen
+// (ignoring the live counters).
 function catalogueChanged(cached, products, categories) {
   if (!cached) return true;
-  return JSON.stringify(cached.products) !== JSON.stringify(products) ||
+  return JSON.stringify(withoutCounters(cached.products)) !== JSON.stringify(withoutCounters(products)) ||
          JSON.stringify(cached.categories) !== JSON.stringify(categories);
+}
+
+// True when only the counters moved (save the new copy, patch the numbers).
+function countersChanged(cached, products) {
+  if (!cached) return false;
+  return JSON.stringify(cached.products) !== JSON.stringify(products);
 }
 
 // fetch() with a timeout; long by default because a cold start can take
@@ -51,5 +69,5 @@ function fetchWithTimeout(url, ms = 70000, opts = {}) {
 }
 
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { CATALOGUE_KEY, CATALOGUE_MAX_AGE_MS, readCatalogue, writeCatalogue, catalogueChanged, fetchWithTimeout };
+  module.exports = { CATALOGUE_KEY, CATALOGUE_MAX_AGE_MS, readCatalogue, writeCatalogue, catalogueChanged, countersChanged, withoutCounters, fetchWithTimeout };
 }

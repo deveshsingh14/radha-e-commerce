@@ -651,3 +651,23 @@ input.locked { background: var(--soft); color: var(--ink); cursor: not-allowed; 
   background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
   background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
 .f-field select:disabled { background-color: var(--soft); cursor: not-allowed; }
+
+/* 👁 unique-visitor count (shown from 10) */
+.pin-right { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.pin-views { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.pin-views[hidden] { display: none; }
+.pin-views .ico { width: 13px; height: 13px; }
+.sh-price-row .pin-views { font-size: 12px; }
+.sh-price-row .pin-views .ico { width: 15px; height: 15px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* checkout: "area not listed? tell us your pincode" */
+.link-btn { background: none; border: 0; padding: 0; color: var(--maroon); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.area-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.area-ask[hidden] { display: none; }
+.area-ask input { flex: 1 1 140px; min-width: 0; }
+.area-ask .btn-line { flex: none; padding: 8px 16px; }
+.area-ask .f-hint { flex-basis: 100%; }
+
+.privacy-foot { text-align: center; color: var(--muted); font-size: 12px; line-height: 1.5; margin: 18px auto 8px; padding: 0 16px; max-width: 560px; }
+.privacy-foot a { color: var(--maroon); font-weight: 700; }

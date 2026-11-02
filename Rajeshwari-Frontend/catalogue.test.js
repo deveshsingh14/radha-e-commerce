@@ -70,3 +70,19 @@ describe('fetchWithTimeout', () => {
     await expect(fetchWithTimeout('https://api.test/x', 1000)).resolves.toEqual({ ok: true });
   });
 });
+
+describe("live counters", () => {
+  const { catalogueChanged, countersChanged } = require("./catalogue");
+  const cached = { products: [{ id: 1, title: "A", viewCount: 10 }], categories: [] };
+  test("a view-count change alone is not a catalogue change", () => {
+    const fresh = [{ id: 1, title: "A", viewCount: 25 }];
+    expect(catalogueChanged(cached, fresh, [])).toBe(false);
+    expect(countersChanged(cached, fresh)).toBe(true);
+  });
+  test("a real change is still detected", () => {
+    expect(catalogueChanged(cached, [{ id: 1, title: "B", viewCount: 10 }], [])).toBe(true);
+  });
+  test("identical data changes nothing", () => {
+    expect(countersChanged(cached, [{ id: 1, title: "A", viewCount: 10 }])).toBe(false);
+  });
+});

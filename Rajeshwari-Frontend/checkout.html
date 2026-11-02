@@ -55,7 +55,13 @@
             <option value="">Choose your delivery area</option>
           </select>
           <small class="f-hint" id="areaHint" aria-live="polite"></small>
-          <small class="f-hint" id="areaNote">Area not listed? We don't deliver there yet.</small>
+          <small class="f-hint" id="areaNote">Area not listed? We don't deliver there yet —
+            <button type="button" class="link-btn" id="areaAskBtn">tell us your pincode</button></small>
+          <div class="area-ask" id="areaAsk" hidden>
+            <input type="text" id="areaAskPin" inputmode="numeric" maxlength="6" placeholder="6-digit pincode" aria-label="Your pincode">
+            <button type="button" class="btn-line" id="areaAskSend">Send</button>
+            <small class="f-hint" id="areaAskHint" aria-live="polite"></small>
+          </div>
         </div>
         <div class="f-field"><span>Full address</span><textarea id="address"></textarea></div>
         <div class="f-row">
@@ -135,8 +141,10 @@
   </div>
 </div>
 
+<p class="privacy-foot">We count visits and searches anonymously to improve the shop — no ads, no selling data. <a href="privacy.html">Privacy</a></p>
 <div id="toast"></div>
 <script src="api.js"></script>
+<script src="analytics.js"></script>
 <script src="checkout.js"></script>
 <script src="pwa.js" defer></script>
 <script src="notifications.js" defer></script>

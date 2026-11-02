@@ -40,6 +40,9 @@ let searchQuery = "";
 let isLogin = true;
 
 // ---------- helpers ----------
+// analytics.js is optional: the shop works the same without it.
+function track(type, fields) { if (typeof window.TRACK === "function") window.TRACK(type, fields); }
+if (typeof compactCount !== "function") window.compactCount = () => "";
 function normalizeProduct(p) {
   const categoryList = (p.categories || [])
     .map(c => c.category && c.category.name).filter(Boolean);
@@ -140,6 +143,9 @@ async function boot() {
       renderCatalogue();        // keeps search text and sort order
       if (cached) window.scrollTo(0, y);
       writeCatalogue(localStorage, fresh.products, fresh.categories);
+    } else if (countersChanged(cached, fresh.products)) {
+      patchCounters(fresh.products);
+      writeCatalogue(localStorage, fresh.products, fresh.categories);
     }
   } catch (e) {
     console.error("Error loading storefront data:", e);
@@ -152,6 +158,28 @@ async function boot() {
   refreshWishlist();
   refreshCartCount();
   updateAuthUI();
+}
+
+// 👁 shown to everyone once a product has 10+ unique daily visitors.
+function viewsHTML(p) {
+  const label = compactCount(p.viewCount);
+  return `<span class="pin-views" ${label ? "" : "hidden"} title="Views">` +
+    `<svg class="ico" aria-hidden="true"><use href="#i-eye"/></svg><span class="n">${label}</span>` +
+    `<span class="sr-only"> views</span></span>`;
+}
+function patchCounters(rawProducts) {
+  const byId = new Map(rawProducts.map(p => [p.id, p]));
+  for (const p of PRODUCTS) {
+    const fresh = byId.get(p.id);
+    if (fresh) p.viewCount = fresh.viewCount;
+  }
+  document.querySelectorAll(".pin[data-id] .pin-views").forEach(el => {
+    const p = byId.get(Number(el.closest(".pin").dataset.id));
+    if (!p) return;
+    const label = compactCount(p.viewCount);
+    el.hidden = !label;
+    el.querySelector(".n").textContent = label;
+  });
 }
 
 function renderSkeletons() {
@@ -253,6 +281,7 @@ function applyLaunchCategory() {
 }
 function setCategory(cat) {
   activeCategory = cat;
+  if (cat) track("category_select", { categoryName: cat });
   renderStories();
   applyFilters();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -313,7 +342,7 @@ function createProductCard(p) {
       <div class="pin-title">${esc(p.title)}</div>
       <div class="pin-row">
         <span class="pin-price">${inr(p.price)}</span>
-        <span class="pin-cat">${esc(p.category)}</span>
+        <span class="pin-right">${viewsHTML(p)}<span class="pin-cat">${esc(p.category)}</span></span>
       </div>
     </div>
   </div>`;
@@ -387,9 +416,15 @@ function doubleTapSave(id) {
 //  SEARCH
 // ============================================================
 const searchInput = document.getElementById("searchInput");
+let searchTrackTimer = null;
 searchInput.addEventListener("input", () => {
   searchQuery = searchInput.value.trim();
   applyFilters();
+  clearTimeout(searchTrackTimer);
+  if (searchQuery.length >= 2) {
+    const term = searchQuery;
+    searchTrackTimer = setTimeout(() => track("search", { term, resultCount: document.querySelectorAll("#masonry .pin").length }), 1000);
+  }
 });
 function clearSearch() {
   searchInput.value = ""; searchQuery = ""; applyFilters(); searchInput.focus();
@@ -464,6 +499,7 @@ function openSheet(id) {
       <div class="sh-price-row">
         <span class="sh-price">${inr(p.price)}</span>
         <span class="sh-stock ${stockCls}">${stockTxt}</span>
+        ${viewsHTML(p)}
       </div>
       <div class="sh-cats">
         ${p.categoryList.map(c =>
@@ -485,6 +521,7 @@ function openSheet(id) {
     btn.addEventListener("click", () => { closeSheet(); goToCategory(btn.dataset.cat); }));
   document.getElementById("productSheet").classList.add("open");
   document.body.style.overflow = "hidden";
+  track("product_view", { productId: p.id });
 }
 function closeSheet() {
   document.getElementById("productSheet").classList.remove("open");
@@ -559,6 +596,7 @@ function toggleWishlist(productId) {
     return;
   }
   const saved = WISH.toggle(productId);
+  if (saved) track("save", { productId });
   popHeart(productId);
   if (saved && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not supported */ } }
   toast(saved ? "Saved ♥" : "Removed from saved");
@@ -630,6 +668,7 @@ async function addToCart(productId, silent) {
     });
     if (handle401(res)) return;
     if (res.ok) {
+      track("add_to_cart", { productId });
       if (!silent) toast("Added to cart");
       refreshCartCount();
     }

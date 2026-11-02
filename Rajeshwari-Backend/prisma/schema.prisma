@@ -46,6 +46,8 @@ model Product {
   keywords    String?
   createdAt   DateTime          @default(now())
   categories  ProductCategory[]
+  // unique visitors per day, summed (the public 👁 count; shown from 10)
+  viewCount   Int      @default(0)
 
   cartItems     Cart[]
   wishlistItems Wishlist[]
@@ -210,4 +212,50 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscription")
+}
+
+// ---------- Analytics (anonymous; no names, emails, phones or IPs) ----------
+// Raw shop events, kept 90 days.
+model AnalyticsEvent {
+  id           Int      @id @default(autoincrement())
+  type         String
+  visitorId    String // random anonymous id from the browser
+  productId    Int?
+  categoryName String?
+  term         String? // search text (cleaned)
+  resultCount  Int?
+  pincode      String?
+  page         String?
+  createdAt    DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([productId, type, createdAt])
+  @@index([createdAt])
+  @@map("analytics_event")
+}
+
+// One row per (product, visitor, day) — counts unique views; kept 3 days.
+model ProductView {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  visitorId String
+  day       DateTime @db.Date
+
+  @@unique([productId, visitorId, day])
+  @@index([day])
+  @@map("product_view")
+}
+
+// Permanent daily totals per product (small; powers Insights).
+model ProductDailyStat {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  day       DateTime @db.Date
+  views     Int      @default(0)
+  saves     Int      @default(0)
+  carts     Int      @default(0)
+
+  @@unique([productId, day])
+  @@index([day])
+  @@map("product_daily_stat")
 }
